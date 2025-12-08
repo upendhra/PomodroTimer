@@ -1,18 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-<<<<<<< HEAD
-import { ArrowLeft, Eye, EyeOff, ListTodo, Maximize2, Minimize2, Music, Palette, PenSquare, Settings, Timer } from 'lucide-react';
-=======
 import { ArrowLeft, Eye, EyeOff, ListTodo, Music, Palette, PenSquare, Timer } from 'lucide-react';
->>>>>>> main
 import { useParams, useRouter } from 'next/navigation';
 import PlayAreaLayout from '@/components/playarea/PlayAreaLayout';
 import TimerCircle from '@/components/playarea/TimerCircle';
 import ModeTabs from '@/components/playarea/ModeTabs';
 import TimerControls from '@/components/playarea/TimerControls';
 import TaskBoardModal from '@/components/playarea/TaskBoardModal';
-import SettingsPanel from '@/components/playarea/SettingsPanel';
 import { BoardTaskCard, BoardTaskStatus, PRIORITY_META } from '@/components/playarea/types';
 import MusicDrawer from '@/components/project/MusicDrawer';
 import ThemeDrawer, { ThemePreset } from '@/components/theme/ThemeDrawer';
@@ -86,7 +81,7 @@ const formatPlannedMinutes = (totalMinutes: number) => {
 
 const mockBoardTasks: BoardTaskCard[] = [
   { id: 'board-1', title: 'Moodboard hero frames', priority: 'high', duration: 45, status: 'todo' },
-  { id: 'board-2', title: 'Audio cleanup', priority: 'medium', duration: 25, status: 'todo' },
+  { id: 'board-2', title: 'Audio cleanup', priority: 'medium', duration: 25, status: 'planned' },
   { id: 'board-3', title: 'Client recap notes', priority: 'low', duration: 15, status: 'achieved' },
 ];
 
@@ -141,11 +136,6 @@ export default function ProjectPlayAreaPage() {
     border: 'rgba(255,255,255,0.08)',
     chip: 'rgba(255,255,255,0.08)',
   });
-<<<<<<< HEAD
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-=======
->>>>>>> main
 
   const plannedTaskOptions = boardTasks.filter((task) => task.status !== 'achieved');
   const totalPlannedMinutes = plannedTaskOptions.reduce((sum, task) => sum + task.duration, 0);
@@ -372,36 +362,6 @@ export default function ProjectPlayAreaPage() {
     setActiveControl(null);
   };
 
-<<<<<<< HEAD
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => {
-        setIsFullscreen(true);
-      }).catch((err) => {
-        console.error('Error attempting to enable fullscreen:', err);
-      });
-    } else {
-      document.exitFullscreen().then(() => {
-        setIsFullscreen(false);
-      }).catch((err) => {
-        console.error('Error attempting to exit fullscreen:', err);
-      });
-    }
-  };
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, []);
-
-=======
->>>>>>> main
   const handleSelectCurrentTask = (taskId: string, closeEditor = false) => {
     if (!taskId) {
       setCurrentBoardTask(null);
@@ -482,22 +442,6 @@ export default function ProjectPlayAreaPage() {
             <Palette className="h-4 w-4" />
             Theme
           </button>
-<<<<<<< HEAD
-          <button
-            type="button"
-            onClick={() => setSettingsOpen((prev) => !prev)}
-            className={`inline-flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-semibold text-white shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition ${
-              settingsOpen
-                ? 'border-blue-300/60 bg-blue-400/25'
-                : 'border-white/20 bg-white/10/80 hover:border-white/50 hover:bg-white/15'
-            }`}
-            aria-label="Open settings"
-          >
-            <Settings className="h-4 w-4" />
-            Settings
-          </button>
-=======
->>>>>>> main
         </div>
       )}
       <PlayAreaLayout
@@ -508,7 +452,7 @@ export default function ProjectPlayAreaPage() {
           <div className="space-y-6 text-white">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-white/50" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Play area</p>
+                <p className="text-xs uppercase tracking-[0.35em] text-white/40">Play area</p>
                 <h1 className="font-heading mt-1 text-3xl font-semibold text-white">Deep focus mission</h1>
                 <p className="text-sm text-white/60">Select a planned mission and stay in rhythm.</p>
               </div>
@@ -520,177 +464,6 @@ export default function ProjectPlayAreaPage() {
             )}
 
             {showInterface && (
-<<<<<<< HEAD
-              <div className="mx-auto w-full max-w-4xl">
-                <div className="relative rounded-[28px] bg-gradient-to-r from-white/10 via-cyan-400/30 to-purple-500/30 p-[1px] shadow-[0_25px_80px_rgba(8,12,30,0.65)]">
-                  <div
-                    className="relative overflow-hidden rounded-[26px] border p-5 backdrop-blur-xl"
-                    style={panelStyle}
-                  >
-                    <div className="pointer-events-none absolute inset-0 rounded-[26px]">
-                      <div className="absolute inset-0 rounded-[26px] bg-gradient-to-b from-white/12 via-transparent to-white/8 opacity-40" />
-                      <div className="absolute inset-y-0 left-0 w-1/2 rounded-[26px] bg-gradient-to-r from-white/15 via-white/5 to-transparent opacity-40 blur-[40px]" />
-                      <div className="absolute inset-0 rounded-[26px] border border-white/5 opacity-30" />
-                    </div>
-                    <div className="relative z-10">
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <p className="text-xs font-semibold text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Current Mission</p>
-                          <div className="mt-1 flex items-center gap-3">
-                            <h3 className="font-heading text-2xl font-semibold text-white">
-                              {currentBoardTask ? currentBoardTask.title : 'No mission selected'}
-                            </h3>
-                            <button
-                              type="button"
-                              aria-label="Edit mission"
-                              onClick={() => setMissionEditorOpen((prev) => !prev)}
-                              className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-all hover:scale-105 ${
-                                missionEditorOpen
-                                  ? 'border-cyan-400/60 bg-cyan-400/20 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.4)]'
-                                  : 'border-white/20 bg-white/5 text-white/80 hover:border-white/40 hover:bg-white/10 hover:text-white'
-                              }`}
-                              title="Edit current mission"
-                            >
-                              <PenSquare className="h-4 w-4" />
-                            </button>
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-white/60">
-                            {currentBoardTask ? (
-                              <>
-                                <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-xs text-white/80">
-                                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: selectedPriority?.color ?? '#a5f3fc' }}></span>
-                                  {selectedPriority?.label ?? 'Planned'}
-                                </span>
-                                <span>{currentBoardTask.duration}m focus</span>
-                              </>
-                            ) : (
-                              <span className="text-white/50">Pick a planned task to sync your Pomodro timer.</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-3">
-                          <div
-                            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs text-white/80"
-                            style={chipStyle}
-                          >
-                            <span className="text-xs font-medium text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Total Planned</span>
-                            <span className="text-lg font-semibold text-white">{formatPlannedMinutes(totalPlannedMinutes)}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex flex-wrap items-center gap-3 text-white/80">
-                        <div
-                          className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm"
-                          style={chipStyle}
-                        >
-                          <span className="text-lg drop-shadow-[0_5px_18px_rgba(248,250,109,0.55)]">⚡</span>
-                          <span className="text-sm font-semibold text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Streak</span>
-                          <span className="text-base font-semibold text-white">{streakCount}</span>
-                        </div>
-                        <div
-                          className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm"
-                          style={chipStyle}
-                        >
-                          <span className="text-lg drop-shadow-[0_5px_15px_rgba(45,212,191,0.45)]">⏱️</span>
-                          <span className="text-sm font-semibold text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Daily Pomos</span>
-                          <span className="text-base font-semibold text-white">{dailyPomodoro.count}</span>
-                        </div>
-                      </div>
-                      {missionEditorOpen && (
-                        <div className="mt-4 rounded-[24px] bg-gradient-to-r from-white/15 via-emerald-400/20 to-cyan-400/20 p-[1px] shadow-[0_20px_60px_rgba(3,6,15,0.55)]">
-                          <div className="relative rounded-[22px] border p-4 backdrop-blur-xl" style={panelStyle}>
-                            <div className="pointer-events-none absolute inset-0 rounded-[22px]">
-                              <div className="absolute inset-0 rounded-[22px] bg-gradient-to-b from-white/12 via-transparent to-white/5 opacity-45" />
-                              <div className="absolute inset-x-0 top-0 h-1/2 rounded-[22px] bg-gradient-to-b from-white/20 via-transparent to-transparent opacity-35" />
-                              <div className="absolute inset-0 rounded-[22px] border border-white/5 opacity-30" />
-                            </div>
-                            <div className="relative z-10">
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm font-semibold text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Planned Tasks</p>
-                                <button
-                                  type="button"
-                                  onClick={() => setMissionEditorOpen(false)}
-                                  className="text-xs text-white/60 hover:text-white"
-                                >
-                                  Close
-                                </button>
-                              </div>
-                              <div className="mt-3 space-y-2 max-h-60 overflow-y-auto pr-1">
-                                {plannedTaskOptions.map((task) => (
-                                  <div
-                                    key={task.id}
-                                    className={`rounded-2xl border px-4 py-3 text-sm transition ${
-                                      currentBoardTask?.id === task.id
-                                        ? 'border-emerald-300/70 bg-emerald-400/10 text-white'
-                                        : 'border-white/10 bg-white/5/40 text-white/80 hover:border-white/30'
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between gap-3">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSelectCurrentTask(task.id, true)}
-                                        className="text-left"
-                                      >
-                                        <div className="font-medium text-white">{task.title}</div>
-                                        <p className="text-[11px] text-white/50">{PRIORITY_META[task.priority].label}</p>
-                                      </button>
-                                      <div className="flex items-center gap-2">
-                                        <label htmlFor={`task-timer-${task.id}`} className="text-xs font-medium text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                                          Timer
-                                        </label>
-                                        <input
-                                          id={`task-timer-${task.id}`}
-                                          type="text"
-                                          value={taskTimeInputs[task.id] ?? formatMinutesToClock(task.duration)}
-                                          onChange={(event) => handleTaskTimeInputChange(task.id, event.target.value)}
-                                          onBlur={() => commitTaskTimeInput(task.id)}
-                                          onKeyDown={(event) => {
-                                            if (event.key === 'Enter') {
-                                              event.preventDefault();
-                                              commitTaskTimeInput(task.id);
-                                              (event.currentTarget as HTMLInputElement).blur();
-                                            }
-                                            if (event.key === 'Escape') {
-                                              event.preventDefault();
-                                              setTaskTimeInputs((prev) => ({
-                                                ...prev,
-                                                [task.id]: formatMinutesToClock(task.duration),
-                                              }));
-                                              (event.currentTarget as HTMLInputElement).blur();
-                                            }
-                                          }}
-                                          className="w-20 rounded-xl border border-white/20 bg-black/30 px-2 py-1 text-center text-sm text-white/90 focus:border-white/60 focus:outline-none"
-                                          placeholder="MM:SS"
-                                          inputMode="numeric"
-                                          aria-label={`Edit timer for ${task.title}`}
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                                {!plannedTaskOptions.length && (
-                                  <p className="text-xs text-white/50">No planned tasks available. Use the task board to plan your missions.</p>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMissionEditorOpen(false);
-                                  setTaskBoardOpen(true);
-                                }}
-                                className="mt-4 inline-flex items-center justify-center rounded-full border border-dashed border-white/30 px-4 py-2 text-xs text-white/80 hover:border-white/60"
-                              >
-                                Open task board
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-=======
               <div
                 className="mx-auto w-full max-w-4xl rounded-2xl border p-5 backdrop-blur-xl"
                 style={panelStyle}
@@ -906,56 +679,36 @@ export default function ProjectPlayAreaPage() {
         content={noteContent}
         onChange={setNoteContent}
       />
-      <SettingsPanel
-        open={showInterface && settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
-      <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white shadow-[0_8px_25px_rgba(0,0,0,0.4)] backdrop-blur-xl transition hover:border-white/50 hover:bg-black/50"
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+      <button
+        type="button"
+        onClick={() => {
+          setShowInterface((prev) => {
+            const next = !prev;
+            if (!next) {
+              setMissionEditorOpen(false);
+              setMusicDrawerOpen(false);
+              setTaskBoardOpen(false);
+              setThemeDrawerOpen(false);
+              setCalendarOpen(false);
+              setNoteOpen(false);
+            }
+            return next;
+          });
+        }}
+        className="fixed bottom-8 right-8 z-50 text-white"
+        aria-label={showInterface ? 'Hide interface' : 'Show interface'}
+      >
+        <span
+          className={`inline-flex h-16 w-16 items-center justify-center text-4xl ${
+            showInterface
+              ? 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.9)]'
+              : 'text-cyan-200 drop-shadow-[0_0_35px_rgba(59,225,255,0.85)]'
+          }`}
+          aria-hidden
         >
-          {isFullscreen ? (
-            <Minimize2 className="h-5 w-5" />
-          ) : (
-            <Maximize2 className="h-5 w-5" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setShowInterface((prev) => {
-              const next = !prev;
-              if (!next) {
-                setMissionEditorOpen(false);
-                setMusicDrawerOpen(false);
-                setTaskBoardOpen(false);
-                setThemeDrawerOpen(false);
-                setCalendarOpen(false);
-                setNoteOpen(false);
-                setSettingsOpen(false);
-              }
-              return next;
-            });
-          }}
-          className="text-white"
-          aria-label={showInterface ? 'Hide interface' : 'Show interface'}
-        >
-          <span
-            className={`inline-flex h-16 w-16 items-center justify-center text-4xl ${
-              showInterface
-                ? 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.9)]'
-                : 'text-cyan-200 drop-shadow-[0_0_35px_rgba(59,225,255,0.85)]'
-            }`}
-            aria-hidden
-          >
-            {showInterface ? '👁️' : '🙈'}
-          </span>
-        </button>
-      </div>
+          {showInterface ? '👁️' : '🙈'}
+        </span>
+      </button>
     </div>
   );
 }
