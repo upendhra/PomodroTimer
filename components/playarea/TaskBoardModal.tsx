@@ -1,6 +1,10 @@
 'use client';
 
+<<<<<<< HEAD
 import { useCallback, useEffect, useMemo, useState } from 'react';
+=======
+import { useMemo, useState } from 'react';
+>>>>>>> main
 import {
   ChevronDown,
   ChevronUp,
@@ -53,6 +57,19 @@ const COLUMN_CONFIG: ColumnMeta[] = [
     accentBorder: 'border-l-4 border-l-amber-300/80',
   },
   {
+<<<<<<< HEAD
+=======
+    key: 'planned',
+    label: 'Planned today',
+    subtitle: 'On deck next',
+    icon: Target,
+    badgeClass: 'border-emerald-300/70 bg-emerald-400/10 text-emerald-50 shadow-[0_0_25px_rgba(16,185,129,0.3)]',
+    iconClass: 'text-emerald-200',
+    accentBar: 'bg-emerald-300/80',
+    accentBorder: 'border-l-4 border-l-sky-300/80',
+  },
+  {
+>>>>>>> main
     key: 'achieved',
     label: 'Achieved tasks',
     subtitle: 'Wins & ship logs',
@@ -69,12 +86,20 @@ const COLUMN_CARD_STYLES: Record<BoardTaskStatus, { card: string; collapsed: str
     card: 'border-amber-200/70 bg-amber-300/5',
     collapsed: 'border-amber-200/60 bg-amber-300/5',
   },
+<<<<<<< HEAD
+=======
+  planned: {
+    card: 'border-sky-200/70 bg-sky-300/5',
+    collapsed: 'border-sky-200/60 bg-sky-300/5',
+  },
+>>>>>>> main
   achieved: {
     card: 'border-emerald-200/70 bg-emerald-300/5',
     collapsed: 'border-emerald-200/60 bg-emerald-300/5',
   },
 };
 
+<<<<<<< HEAD
 const COLUMN_THEME: Record<BoardTaskStatus, { gradient: string; glow: string; chipBg: string; chipText: string }> = {
   todo: {
     gradient: 'from-amber-500/15 via-amber-300/5 to-transparent',
@@ -90,6 +115,8 @@ const COLUMN_THEME: Record<BoardTaskStatus, { gradient: string; glow: string; ch
   },
 };
 
+=======
+>>>>>>> main
 const PRIORITY_OPTIONS: TaskPriority[] = ['high', 'medium', 'low'];
 
 export default function TaskBoardModal({
@@ -203,7 +230,10 @@ export default function TaskBoardModal({
     const isCollapsed = collapsedTasks[task.id] ?? false;
     const isCurrent = currentTaskId === task.id && task.status !== 'achieved';
     const columnStyles = COLUMN_CARD_STYLES[columnKey];
+<<<<<<< HEAD
     const columnTheme = COLUMN_THEME[columnKey];
+=======
+>>>>>>> main
 
     if (allowCollapse && isCollapsed) {
       return (
@@ -212,10 +242,15 @@ export default function TaskBoardModal({
           draggable
           onDragStart={() => setDraggedTask(task.id)}
           onDragEnd={() => setDraggedTask(null)}
+<<<<<<< HEAD
           className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-sm text-white/80 transition ${
             isCurrent
               ? 'border-emerald-300/70 bg-emerald-400/10 shadow-[0_0_25px_rgba(16,185,129,0.35)]'
               : `${columnStyles.collapsed} ${columnTheme.glow}`
+=======
+          className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm text-white/80 transition ${
+            isCurrent ? 'border-emerald-300/70 bg-emerald-400/10 shadow-[0_0_25px_rgba(16,185,129,0.35)]' : columnStyles.collapsed
+>>>>>>> main
           }`}
         >
           <div className="min-w-0 flex-1">
@@ -260,12 +295,19 @@ export default function TaskBoardModal({
         draggable
         onDragStart={() => setDraggedTask(task.id)}
         onDragEnd={() => setDraggedTask(null)}
+<<<<<<< HEAD
         className={`relative mx-auto w-full max-w-[420px] rounded-3xl border p-3 transition before:pointer-events-none before:absolute before:inset-0 before:rounded-[26px] before:bg-gradient-to-br ${COLUMN_THEME[columnKey].gradient} ${
           COLUMN_THEME[columnKey].glow
         } before:opacity-80 before:mix-blend-screen ${
           isCurrent
             ? 'border-emerald-300/80 bg-emerald-400/10 shadow-[0_15px_45px_rgba(16,185,129,0.35)]'
             : `${columnStyles.card} ${columnTheme.glow}`
+=======
+        className={`rounded-2xl border p-4 shadow-[0_15px_40px_rgba(2,4,12,0.5)] transition ${
+          isCurrent
+            ? 'border-emerald-300/80 bg-emerald-400/10 shadow-[0_15px_45px_rgba(16,185,129,0.35)]'
+            : columnStyles.card
+>>>>>>> main
         }`}
       >
         <div className="relative flex items-start justify-between gap-2.5">
@@ -517,7 +559,11 @@ export default function TaskBoardModal({
           <button
             type="button"
             onClick={handleAdd}
+<<<<<<< HEAD
             className="inline-flex w-auto items-center gap-2 self-start justify-self-start rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur transition hover:border-white/40 hover:bg-white/15"
+=======
+            className="inline-flex w-auto items-center gap-2 self-start justify-self-start rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-white shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur transition hover:border-white/40 hover:bg-white/15"
+>>>>>>> main
           >
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-[#0b1220] shadow-[inset_0_1px_3px_rgba(0,0,0,0.2)]">
               <Plus className="h-3 w-3" />
@@ -526,6 +572,7 @@ export default function TaskBoardModal({
           </button>
         </div>
 
+<<<<<<< HEAD
         <div className="flex-1 min-h-0 overflow-hidden">
           <div className="grid h-full min-h-0 gap-6 pr-2 overflow-y-auto md:grid-cols-[1.2fr_1fr]">
             {COLUMN_CONFIG.map((column) => (
@@ -542,6 +589,22 @@ export default function TaskBoardModal({
                   <span
                     className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${column.badgeClass}`}
                     style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+=======
+        <div className="grid flex-1 gap-6 overflow-y-auto pr-2 md:grid-cols-3">
+          {COLUMN_CONFIG.map((column) => (
+            <div
+              key={column.key}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={() => handleDrop(column.key)}
+              className={`flex flex-col rounded-[24px] border border-white/12 bg-white/5 p-4 shadow-[0_25px_50px_rgba(3,6,15,0.45)] backdrop-blur-xl transition ${
+                draggedTask ? 'ring-1 ring-white/20' : 'hover:border-white/20'
+              }`}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div>
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.35em] ${column.badgeClass}`}
+>>>>>>> main
                   >
                     <column.icon className={`h-3.5 w-3.5 ${column.iconClass}`} />
                     {column.label}
@@ -553,11 +616,14 @@ export default function TaskBoardModal({
                 </div>
                 <div className="flex items-center gap-2 text-white/60">
                   <span className="text-sm font-semibold">{grouped[column.key].length}</span>
+<<<<<<< HEAD
                   {column.key === 'todo' && (
                     <span className="text-xs text-amber-300/80 font-medium">
                       • {formatTotalDuration(todoTotalDuration)}
                     </span>
                   )}
+=======
+>>>>>>> main
                   <button
                     type="button"
                     onClick={() =>
@@ -575,6 +641,7 @@ export default function TaskBoardModal({
                 </div>
               </div>
               {collapsedColumns[column.key] ? (
+<<<<<<< HEAD
                 <div className="flex-1 space-y-2 overflow-y-auto pt-4 pr-1">
                   {column.key === 'achieved' ? (
                     dailyStats.length ? (

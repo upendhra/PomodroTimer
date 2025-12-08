@@ -1,7 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+<<<<<<< HEAD
 import { ArrowLeft, Eye, EyeOff, ListTodo, Maximize2, Minimize2, Music, Palette, PenSquare, Settings, Timer } from 'lucide-react';
+=======
+import { ArrowLeft, Eye, EyeOff, ListTodo, Music, Palette, PenSquare, Timer } from 'lucide-react';
+>>>>>>> main
 import { useParams, useRouter } from 'next/navigation';
 import PlayAreaLayout from '@/components/playarea/PlayAreaLayout';
 import TimerCircle from '@/components/playarea/TimerCircle';
@@ -137,8 +141,11 @@ export default function ProjectPlayAreaPage() {
     border: 'rgba(255,255,255,0.08)',
     chip: 'rgba(255,255,255,0.08)',
   });
+<<<<<<< HEAD
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+=======
+>>>>>>> main
 
   const plannedTaskOptions = boardTasks.filter((task) => task.status !== 'achieved');
   const totalPlannedMinutes = plannedTaskOptions.reduce((sum, task) => sum + task.duration, 0);
@@ -365,6 +372,7 @@ export default function ProjectPlayAreaPage() {
     setActiveControl(null);
   };
 
+<<<<<<< HEAD
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().then(() => {
@@ -392,6 +400,8 @@ export default function ProjectPlayAreaPage() {
     };
   }, []);
 
+=======
+>>>>>>> main
   const handleSelectCurrentTask = (taskId: string, closeEditor = false) => {
     if (!taskId) {
       setCurrentBoardTask(null);
@@ -472,6 +482,7 @@ export default function ProjectPlayAreaPage() {
             <Palette className="h-4 w-4" />
             Theme
           </button>
+<<<<<<< HEAD
           <button
             type="button"
             onClick={() => setSettingsOpen((prev) => !prev)}
@@ -485,6 +496,8 @@ export default function ProjectPlayAreaPage() {
             <Settings className="h-4 w-4" />
             Settings
           </button>
+=======
+>>>>>>> main
         </div>
       )}
       <PlayAreaLayout
@@ -507,6 +520,7 @@ export default function ProjectPlayAreaPage() {
             )}
 
             {showInterface && (
+<<<<<<< HEAD
               <div className="mx-auto w-full max-w-4xl">
                 <div className="relative rounded-[28px] bg-gradient-to-r from-white/10 via-cyan-400/30 to-purple-500/30 p-[1px] shadow-[0_25px_80px_rgba(8,12,30,0.65)]">
                   <div
@@ -675,6 +689,153 @@ export default function ProjectPlayAreaPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+=======
+              <div
+                className="mx-auto w-full max-w-4xl rounded-2xl border p-5 backdrop-blur-xl"
+                style={panelStyle}
+              >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex-1">
+                  <p className="text-[10px] uppercase tracking-[0.45em] text-white/50">Current mission</p>
+                  <div className="mt-1 flex items-center gap-3">
+                    <h3 className="font-heading text-2xl font-semibold text-white">
+                      {currentBoardTask ? currentBoardTask.title : 'No mission selected'}
+                    </h3>
+                    <button
+                      type="button"
+                      aria-label="Edit mission"
+                      onClick={() => setMissionEditorOpen((prev) => !prev)}
+                      className={`inline-flex items-center justify-center text-white/70 transition hover:text-white ${
+                        missionEditorOpen ? 'text-white' : ''
+                      }`}
+                    >
+                      <PenSquare className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-white/60">
+                    {currentBoardTask ? (
+                      <>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-xs text-white/80">
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: selectedPriority?.color ?? '#a5f3fc' }}></span>
+                          {selectedPriority?.label ?? 'Planned'}
+                        </span>
+                        <span>{currentBoardTask.duration}m focus</span>
+                      </>
+                    ) : (
+                      <span className="text-white/50">Pick a planned task to sync your Pomodro timer.</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-3">
+                  <div
+                    className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs text-white/80"
+                    style={chipStyle}
+                  >
+                    <span className="text-[10px] uppercase tracking-[0.4em] text-white/50">Total planned</span>
+                    <span className="text-lg font-semibold text-white">{formatPlannedMinutes(totalPlannedMinutes)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-white/80">
+                <div
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm"
+                  style={chipStyle}
+                >
+                  <span className="text-lg drop-shadow-[0_5px_18px_rgba(248,250,109,0.55)]">⚡</span>
+                  <span className="text-xs uppercase tracking-[0.35em] text-white/50">Streak</span>
+                  <span className="text-base font-semibold text-white">{streakCount}</span>
+                </div>
+                <div
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm"
+                  style={chipStyle}
+                >
+                  <span className="text-lg drop-shadow-[0_5px_15px_rgba(45,212,191,0.45)]">⏱️</span>
+                  <span className="text-xs uppercase tracking-[0.35em] text-white/50">Daily Pomos</span>
+                  <span className="text-base font-semibold text-white">{dailyPomodoro.count}</span>
+                </div>
+              </div>
+              {missionEditorOpen && (
+                <div className="mt-4 rounded-2xl border p-4" style={panelStyle}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs uppercase tracking-[0.35em] text-white/50">Planned tasks</p>
+                    <button
+                      type="button"
+                      onClick={() => setMissionEditorOpen(false)}
+                      className="text-xs text-white/60 hover:text-white"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="mt-3 space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {plannedTaskOptions.map((task) => (
+                      <div
+                        key={task.id}
+                        className={`rounded-2xl border px-4 py-3 text-sm transition ${
+                          currentBoardTask?.id === task.id
+                            ? 'border-emerald-300/70 bg-emerald-400/10 text-white'
+                            : 'border-white/10 bg-white/5/40 text-white/80 hover:border-white/30'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectCurrentTask(task.id, true)}
+                            className="text-left"
+                          >
+                            <div className="font-medium text-white">{task.title}</div>
+                            <p className="text-[11px] text-white/50">{PRIORITY_META[task.priority].label}</p>
+                          </button>
+                          <div className="flex items-center gap-2">
+                            <label htmlFor={`task-timer-${task.id}`} className="text-[10px] uppercase tracking-[0.25em] text-white/60">
+                              Timer
+                            </label>
+                            <input
+                              id={`task-timer-${task.id}`}
+                              type="text"
+                              value={taskTimeInputs[task.id] ?? formatMinutesToClock(task.duration)}
+                              onChange={(event) => handleTaskTimeInputChange(task.id, event.target.value)}
+                              onBlur={() => commitTaskTimeInput(task.id)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  commitTaskTimeInput(task.id);
+                                  (event.currentTarget as HTMLInputElement).blur();
+                                }
+                                if (event.key === 'Escape') {
+                                  event.preventDefault();
+                                  setTaskTimeInputs((prev) => ({
+                                    ...prev,
+                                    [task.id]: formatMinutesToClock(task.duration),
+                                  }));
+                                  (event.currentTarget as HTMLInputElement).blur();
+                                }
+                              }}
+                              className="w-20 rounded-xl border border-white/20 bg-black/30 px-2 py-1 text-center text-sm text-white/90 focus:border-white/60 focus:outline-none"
+                              placeholder="MM:SS"
+                              inputMode="numeric"
+                              aria-label={`Edit timer for ${task.title}`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {!plannedTaskOptions.length && (
+                      <p className="text-xs text-white/50">No planned tasks available. Use the task board to plan your missions.</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMissionEditorOpen(false);
+                      setTaskBoardOpen(true);
+                    }}
+                    className="mt-4 inline-flex items-center justify-center rounded-full border border-dashed border-white/30 px-4 py-2 text-xs text-white/80 hover:border-white/60"
+                  >
+                    Open task board
+                  </button>
+                </div>
+              )}
               </div>
             )}
 

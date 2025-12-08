@@ -11,6 +11,7 @@ import MusicDrawer from '@/components/project/MusicDrawer';
 import CalendarDrawer from '@/components/project/CalendarDrawer';
 import QuickNoteModal from '@/components/project/QuickNoteModal';
 import ProjectInsightsPanel from '@/components/project/ProjectInsightsPanel';
+import ProjectViewSwitch from '@/components/project/ProjectViewSwitch';
 import { ArrowLeft, Music, CalendarDays, NotebookPen, BarChart3 } from 'lucide-react';
 
 interface Project {
@@ -25,8 +26,19 @@ interface Project {
 
 export default function ProjectHomeBoardPage() {
   const params = useParams();
-  const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
+  const projectId = typeof params.projectId === 'string' ? params.projectId : null;
+  const cacheKey = projectId ? `projectHome:${projectId}` : null;
+  const [project, setProject] = useState<Project | null>(() => {
+    if (typeof window === 'undefined' || !cacheKey) return null;
+    try {
+      const cached = window.sessionStorage.getItem(cacheKey);
+      return cached ? (JSON.parse(cached) as Project) : null;
+    } catch (cacheError) {
+      console.warn('Unable to restore project cache', cacheError);
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(!project);
   const [error, setError] = useState<string | null>(null);
   const [isStatsOpen, setStatsOpen] = useState(false);
   const [isMusicDrawerOpen, setMusicDrawerOpen] = useState(false);
@@ -77,6 +89,13 @@ export default function ProjectHomeBoardPage() {
 
         console.log('Project fetched successfully:', data);
         setProject(data);
+        if (cacheKey && typeof window !== 'undefined') {
+          try {
+            window.sessionStorage.setItem(cacheKey, JSON.stringify(data));
+          } catch (cacheError) {
+            console.warn('Unable to cache project home data', cacheError);
+          }
+        }
       } catch (err) {
         console.error('Error fetching project:', err);
         setError('Failed to load project');
@@ -86,7 +105,7 @@ export default function ProjectHomeBoardPage() {
     }
 
     getProject();
-  }, [params.projectId]);
+  }, [params.projectId, cacheKey]);
 
   if (loading) {
     return (
@@ -206,6 +225,11 @@ export default function ProjectHomeBoardPage() {
 
       <div className="relative z-10 flex items-center justify-center w-full h-screen px-6 py-12">
         <div className="flex flex-col items-center gap-12 max-w-5xl w-full">
+          <ProjectViewSwitch
+            projectId={project.id}
+            activeView="home"
+            className="self-center"
+          />
           <WelcomeCard projectName={project.project_name} />
           <ProjectStats project={project} />
           <EnterPlayButton projectId={project.id} />
