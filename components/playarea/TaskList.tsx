@@ -52,7 +52,7 @@ export default function TaskList({
     <div className="rounded-[var(--card-radius-lg)] border border-white/10 bg-[var(--surface-muted)]/70 shadow-[0_35px_80px_rgba(3,5,12,0.55)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 px-6 py-5">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.4em] text-white/50">Mission queue</p>
+          <p className="text-sm font-semibold text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Mission Queue</p>
           <h3 className="font-heading text-2xl font-semibold text-white">Pending tasks</h3>
           <p className="text-sm text-white/50">{sortedTasks.length} active · {completedTasks.length} completed</p>
         </div>

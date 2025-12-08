@@ -11,7 +11,7 @@ export default function CurrentTaskPanel({ task }: CurrentTaskPanelProps) {
   if (!task) {
     return (
       <div className="rounded-[var(--card-radius-md)] border border-white/10 bg-[var(--surface-muted)] px-6 py-5 text-center">
-        <p className="text-xs uppercase tracking-[0.4em] text-white/40">No active task</p>
+        <p className="text-sm font-medium text-white/50" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>No Active Task</p>
         <p className="font-heading mt-3 text-xl font-semibold text-white">Pick a task to start a focused sprint ✨</p>
       </div>
     );
@@ -23,7 +23,7 @@ export default function CurrentTaskPanel({ task }: CurrentTaskPanelProps) {
     <div className="rounded-[var(--card-radius-md)] border border-white/10 bg-[var(--surface-muted)] px-6 py-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">Current task</p>
+          <p className="text-xs font-semibold text-white/50" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Current Task</p>
           <h3 className="font-heading mt-1 text-2xl font-semibold text-white">{task.title}</h3>
           <div
             className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium"
@@ -35,7 +35,7 @@ export default function CurrentTaskPanel({ task }: CurrentTaskPanelProps) {
         </div>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/20"
+          className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
         >
           <PlayCircle className="h-4 w-4" />
           Guide me

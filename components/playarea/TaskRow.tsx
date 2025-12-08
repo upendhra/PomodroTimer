@@ -40,8 +40,8 @@ export default function TaskRow({ task, isActive, onToggleComplete, onStartTask,
           <div className="flex items-center justify-between gap-3">
             <p className="font-heading text-base font-semibold text-white">{task.title}</p>
             <span
-              className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.2em]"
-              style={{ background: priority.pillBg, color: priority.color }}
+              className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+              style={{ background: priority.pillBg, color: priority.color, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: priority.color }}></span>
               {priority.label}

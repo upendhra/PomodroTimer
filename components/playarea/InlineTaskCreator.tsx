@@ -50,10 +50,14 @@ export default function InlineTaskCreator({
                   key={level}
                   type="button"
                   onClick={() => onPriorityChange(level)}
-                  className={`rounded-2xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition-colors ${
+                  className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition-colors ${
                     isActive ? 'border-white text-white' : 'border-white/15 text-white/60 hover:text-white'
                   }`}
-                  style={{ background: isActive ? meta.pillBg : 'transparent', color: isActive ? meta.color : undefined }}
+                  style={{
+                    background: isActive ? meta.pillBg : 'transparent',
+                    color: isActive ? meta.color : undefined,
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  }}
                 >
                   {meta.label}
                 </button>
@@ -85,7 +89,8 @@ export default function InlineTaskCreator({
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/70 transition hover:text-white"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-white/70 transition hover:text-white"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
             <X className="h-3.5 w-3.5" />
             Cancel
@@ -93,7 +98,8 @@ export default function InlineTaskCreator({
           <button
             type="button"
             onClick={onSave}
-            className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#0b1220] transition hover:brightness-105"
+            className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-[#0b1220] transition hover:brightness-105"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
             <Check className="h-3.5 w-3.5" />
             Save

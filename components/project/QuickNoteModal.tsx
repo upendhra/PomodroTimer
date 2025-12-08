@@ -43,7 +43,7 @@ export default function QuickNoteModal({ open, onClose, content, onChange }: Qui
           <div className="flex items-center gap-2">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-white/15 text-sm font-semibold">✍️</span>
             <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-white/60">Quick note</p>
+              <p className="text-xs font-medium text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Quick Note</p>
               <p className="text-sm font-semibold" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 Pocket Pad
               </p>

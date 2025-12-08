@@ -66,7 +66,7 @@ export default function ProjectsIndexPage() {
       <div className="relative z-10 flex flex-col gap-8">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.5em] text-white/60">Projects</p>
+            <p className="text-base font-semibold text-white/70" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Projects</p>
             <h1 className="text-3xl font-bold" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Your Play Boards
             </h1>

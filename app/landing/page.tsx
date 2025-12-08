@@ -20,7 +20,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-400 via-cyan-400 to-pink-300 shadow-lg shadow-purple-200/60" />
             <div>
-              <p className="text-sm uppercase tracking-[0.4em] text-gray-500">Aurora</p>
+              <p className="text-sm font-semibold text-gray-500" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Aurora</p>
               <p className="text-lg font-semibold text-gray-900">Pomodro</p>
             </div>
           </div>
@@ -163,7 +163,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-400 via-cyan-400 to-pink-300 shadow-lg shadow-purple-200/50" />
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-gray-500">Aurora</p>
+                <p className="text-xs font-semibold text-gray-500" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Aurora</p>
                 <p className="text-xl font-semibold text-gray-900">Pomodro</p>
               </div>
             </div>
@@ -173,7 +173,7 @@ export default function LandingPage() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-4">Product</h4>
+            <h4 className="text-base font-bold text-gray-600 mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Product</h4>
             <ul className="space-y-3 text-gray-600">
               <li><a href="#features" className="hover:text-purple-500 transition-colors">Features</a></li>
               <li><a href="#pricing" className="hover:text-purple-500 transition-colors">Pricing</a></li>
@@ -183,7 +183,7 @@ export default function LandingPage() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-4">Support</h4>
+            <h4 className="text-base font-bold text-gray-600 mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Support</h4>
             <ul className="space-y-3 text-gray-600">
               <li><a className="hover:text-purple-500 transition-colors" href="#">Help Center</a></li>
               <li><a className="hover:text-purple-500 transition-colors" href="#">Contact</a></li>
@@ -193,7 +193,7 @@ export default function LandingPage() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-4">Stay in touch</h4>
+            <h4 className="text-base font-bold text-gray-600 mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Stay in Touch</h4>
             <p className="text-gray-600 mb-4">Receive weekly focus rituals, updates, and launch info.</p>
             <div className="flex items-center gap-2">
               <input

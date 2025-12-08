@@ -49,7 +49,7 @@ export default function ProjectStats({ project }: ProjectStatsProps) {
               <Calendar className="w-4 h-4 text-emerald-200" />
             </span>
             <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-white/60">Duration</p>
+              <p className="text-sm font-semibold text-white/70" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Duration</p>
               <p className="text-base" style={{ fontFamily: "'Manrope', sans-serif" }}>{getDurationDisplay()}</p>
             </div>
           </div>
@@ -58,7 +58,7 @@ export default function ProjectStats({ project }: ProjectStatsProps) {
               <Clock className="w-4 h-4 text-amber-200" />
             </span>
             <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-white/60">Planned Hours</p>
+              <p className="text-sm font-semibold text-white/70" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Planned Hours</p>
               <p className="text-base" style={{ fontFamily: "'Manrope', sans-serif" }}>{totalPlannedHours} hrs</p>
             </div>
           </div>
@@ -68,7 +68,7 @@ export default function ProjectStats({ project }: ProjectStatsProps) {
             </span>
             <div className="flex items-center gap-3">
               <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-white/60">Status</p>
+                <p className="text-sm font-semibold text-white/70" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Status</p>
                 <p className="text-base" style={{ fontFamily: "'Manrope', sans-serif" }}>Active</p>
               </div>
               <span className="px-3 py-1 rounded-full bg-emerald-400/20 text-emerald-200 text-xs font-semibold">Flow</span>

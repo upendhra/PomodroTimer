@@ -8,7 +8,7 @@ export interface PlayTask {
   completed: boolean;
 }
 
-export type BoardTaskStatus = 'todo' | 'planned' | 'achieved';
+export type BoardTaskStatus = 'todo' | 'achieved';
 
 export interface BoardTaskCard {
   id: string;

@@ -42,7 +42,7 @@ export default function CalendarDrawer({ open, onClose }: CalendarDrawerProps) {
       >
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-white/60">Current focus</p>
+            <p className="text-sm font-medium text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Current Focus</p>
             <h2 className="text-3xl font-semibold" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               {current.format("dddd, MMM D")}
             </h2>
@@ -61,7 +61,7 @@ export default function CalendarDrawer({ open, onClose }: CalendarDrawerProps) {
               <p className="text-lg font-semibold" style={{ fontFamily: "'Manrope', sans-serif" }}>
                 {referenceMonth.format("MMMM YYYY")}
               </p>
-              <p className="text-xs uppercase tracking-[0.4em] text-white/50">Calendar</p>
+              <p className="text-xs font-medium text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Calendar</p>
             </div>
             <button
               type="button"
@@ -86,7 +86,7 @@ export default function CalendarDrawer({ open, onClose }: CalendarDrawerProps) {
           {timelineDays.map((day) => (
             <div
               key={day.toISOString()}
-              className={`min-w-[90px] rounded-2xl border border-white/15 px-3 py-2 text-center text-xs uppercase tracking-[0.3em] ${
+              className={`min-w-[90px] rounded-2xl border border-white/15 px-3 py-2 text-center text-xs font-medium ${
                 day.isSame(current, "day") ? "bg-emerald-400/10 text-white" : "bg-white/5 text-white/70"
               }`}
             >
@@ -100,7 +100,7 @@ export default function CalendarDrawer({ open, onClose }: CalendarDrawerProps) {
 
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <div>
-            <div className="grid grid-cols-7 gap-2 text-center text-xs uppercase tracking-[0.3em] text-white/60">
+            <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               {weekdayLabels.map((label) => (
                 <span key={label}>{label}</span>
               ))}
@@ -134,7 +134,7 @@ export default function CalendarDrawer({ open, onClose }: CalendarDrawerProps) {
           </div>
 
           <div className="rounded-3xl border border-white/15 bg-white/5 p-4">
-            <p className="text-sm uppercase tracking-[0.3em] text-white/60">Upcoming</p>
+            <p className="text-sm font-semibold text-white/70" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Upcoming</p>
             <div className="mt-4 space-y-3">
               {timelineDays.map((day, idx) => (
                 <div key={day.toISOString()} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm">

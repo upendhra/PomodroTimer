@@ -61,7 +61,7 @@ export default function ThemeDrawer({
       }`}
     >
       <div className="pointer-events-auto w-64 rounded-3xl border border-white/20 bg-white/10 p-4 text-white shadow-xl backdrop-blur-2xl">
-        <div className="mb-3 flex items-center justify-between text-xs uppercase tracking-[0.4em] text-white/60">
+        <div className="mb-3 flex items-center justify-between text-sm font-semibold text-white/70" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
           <span className="inline-flex items-center gap-1">
             <Palette className="h-3 w-3" />
             Themes

@@ -56,7 +56,7 @@ export default function ProjectCreationStep1() {
                 <span className="text-white font-medium" style={{ fontFamily: "'Manrope', sans-serif" }}>Date Range</span>
               </div>
               {isDateRange && (
-                <span className="text-xs uppercase tracking-wide text-[#0f1c1d] bg-[#82f2ff] px-2 py-1 rounded-full font-semibold" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                <span className="text-xs text-[#0f1c1d] bg-[#82f2ff] px-2 py-1 rounded-full font-bold" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                   Enabled
                 </span>
               )}

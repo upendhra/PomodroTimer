@@ -17,7 +17,7 @@ export default function DashboardCard({ title, subtitle, children, className = "
       <div className="relative p-6 text-[#e9f2ff]">
         {title && (
           <div className="mb-3">
-            <p className="text-xs uppercase tracking-[0.35em] text-[#8FB7D1]/80">{title}</p>
+            <p className="text-sm font-semibold text-[#8FB7D1]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{title}</p>
             {subtitle && <p className="text-sm text-white/70 mt-1">{subtitle}</p>}
           </div>
         )}

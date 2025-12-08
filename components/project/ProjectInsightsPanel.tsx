@@ -52,7 +52,7 @@ export default function ProjectInsightsPanel({ open, project }: ProjectInsightsP
       <div className="pointer-events-auto w-[320px] rounded-[32px] border border-white/15 bg-gradient-to-br from-[#0c1b2b]/90 via-[#1b233f]/90 to-[#2f1f36]/90 p-5 text-white shadow-[0_25px_90px_rgba(14,23,41,0.85)] backdrop-blur-3xl">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-white/60">Flow Insights</p>
+            <p className="text-sm font-semibold text-white/70" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Flow Insights</p>
             <p className="font-semibold text-lg" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Project Pulse
             </p>
@@ -64,13 +64,13 @@ export default function ProjectInsightsPanel({ open, project }: ProjectInsightsP
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-white/85">
           <div className="rounded-3xl border border-white/10 bg-white/5 p-3">
-            <p className="text-[0.6rem] uppercase tracking-[0.35em] text-white/50">Timeline</p>
+            <p className="text-xs font-medium text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Timeline</p>
             <p className="text-sm font-semibold" style={{ fontFamily: "'Manrope', sans-serif" }}>
               {formatDuration(project)}
             </p>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/5 p-3">
-            <p className="text-[0.6rem] uppercase tracking-[0.35em] text-white/50">Cadence</p>
+            <p className="text-xs font-medium text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Cadence</p>
             <p className="text-sm font-semibold" style={{ fontFamily: "'Manrope', sans-serif" }}>
               {averageCadence.toFixed(1)} hrs / slot
             </p>
@@ -79,7 +79,7 @@ export default function ProjectInsightsPanel({ open, project }: ProjectInsightsP
 
         <div className="mt-4 rounded-[26px] border border-white/10 bg-white/5 p-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Energy curve</p>
+            <p className="text-sm font-semibold text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Energy Curve</p>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[0.65rem] text-amber-200">
               <Flame className="h-3.5 w-3.5" />
               Peak {spotlight[0]}
@@ -105,7 +105,7 @@ export default function ProjectInsightsPanel({ open, project }: ProjectInsightsP
                       ></span>
                     </div>
                   </div>
-                  <span className="text-[0.6rem] uppercase tracking-[0.4em] text-white/60">
+                  <span className="text-xs font-medium text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                     {label.slice(0, 3)}
                   </span>
                   <span className="text-[0.65rem] text-white/70">{hours}h</span>

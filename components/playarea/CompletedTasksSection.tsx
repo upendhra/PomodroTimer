@@ -18,7 +18,7 @@ export default function CompletedTasksSection({ tasks, onToggleComplete }: Compl
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between px-4 py-3 text-xs uppercase tracking-[0.35em] text-white/60"
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold text-white/60" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
       >
         <span>Completed tasks ({tasks.length})</span>
         {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
