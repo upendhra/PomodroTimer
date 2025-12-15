@@ -5,6 +5,8 @@ import { supabase } from "@/lib/supabase";
 import ProjectCard from "@/components/dashboard/ProjectCard";
 import { useProjectCreation } from "@/hooks/useProjectCreation";
 import { Plus } from "lucide-react";
+import Toast from '@/components/playarea/Toast';
+import { clearProjectCache } from '@/utils/cache';
 
 interface Project {
   id: string;
@@ -22,41 +24,79 @@ export default function ProjectsIndexPage() {
   const [error, setError] = useState<string | null>(null);
   const { openModal } = useProjectCreation();
 
-  useEffect(() => {
-    async function fetchProjects() {
-      try {
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+const [toastMessage, setToastMessage] = useState<string | null>(null);
+const [toastVisible, setToastVisible] = useState(false);
 
-        if (userError || !user) {
-          window.location.href = "/auth/login";
-          return;
-        }
+const showToast = (message: string) => {
+  setToastMessage(message);
+  setToastVisible(true);
+  setTimeout(() => setToastVisible(false), 3000);
+};
 
-        const { data, error } = await supabase
-          .from("projects")
-          .select("id, project_name, duration_type, start_date, end_date, weekdays, planned_hours")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+const fetchProjects = async () => {
+  setLoading(true);
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-        if (error) {
-          setError("Unable to load projects at the moment.");
-          return;
-        }
-
-        setProjects(data ?? []);
-      } catch (err) {
-        console.error("Failed to fetch projects", err);
-        setError("Something went wrong while loading projects.");
-      } finally {
-        setLoading(false);
-      }
+    if (userError || !user) {
+      window.location.href = "/auth/login";
+      return;
     }
 
-    fetchProjects();
-  }, []);
+    const { data, error } = await supabase
+      .from("projects")
+      .select("id, project_name, duration_type, start_date, end_date, weekdays, planned_hours")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setError("Unable to load projects at the moment.");
+      return;
+    }
+
+    setProjects(data ?? []);
+  } catch (err) {
+    console.error("Failed to fetch projects", err);
+    setError("Something went wrong while loading projects.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+useEffect(() => {
+  fetchProjects();
+}, []);
+
+const handleDeleteProject = async (projectId: string) => {
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      showToast('Authentication required');
+      return;
+    }
+
+    const response = await fetch(`/api/projects/${projectId}/delete-cascade`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
+    const result = await response.json();
+    if (response.ok) {
+      clearProjectCache(projectId);
+      await fetchProjects(); // Refresh the list
+      showToast('Project deleted successfully');
+    } else {
+      showToast(result.error || 'Failed to delete project');
+    }
+  } catch (error) {
+    console.error('Delete error:', error);
+    showToast('Network error while deleting project');
+  }
+};
 
   return (
     <div className="relative isolate min-h-[80vh] overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-8 text-white shadow-2xl">
@@ -111,11 +151,12 @@ export default function ProjectsIndexPage() {
         {!loading && !error && projects.length > 0 && (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard key={project.id} project={project} onDelete={handleDeleteProject} />
             ))}
           </div>
         )}
       </div>
+      <Toast message={toastMessage || ''} visible={toastVisible} />
     </div>
   );
 }

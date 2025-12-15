@@ -24,10 +24,6 @@ function formatDuration(project: Project) {
     ).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
   }
 
-  if (project.duration_type === 'weekday_selection' && project.weekdays.length) {
-    return project.weekdays.join(' · ');
-  }
-
   return 'Flexible cadence';
 }
 

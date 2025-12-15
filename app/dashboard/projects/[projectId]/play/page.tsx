@@ -1,19 +1,33 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Eye, EyeOff, ListTodo, Music, Palette, PenSquare, Timer } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Eye, 
+  EyeOff, 
+  ListTodo, 
+  Maximize2, 
+  Minimize2, 
+  Music, 
+  Palette, 
+  PenSquare, 
+  Settings, 
+  Timer 
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import PlayAreaLayout from '@/components/playarea/PlayAreaLayout';
 import TimerCircle from '@/components/playarea/TimerCircle';
 import ModeTabs from '@/components/playarea/ModeTabs';
 import TimerControls from '@/components/playarea/TimerControls';
-import TaskBoardModal from '@/components/playarea/TaskBoardModal';
-import { BoardTaskCard, BoardTaskStatus, PRIORITY_META } from '@/components/playarea/types';
+import TodoTaskBoardModal from '@/components/playarea/TodoTaskBoardModal';
+import { BoardTaskCard, BoardTaskStatus, PRIORITY_META, ProjectStats, DailyStats, SessionRecord } from '@/components/playarea/types';
 import MusicDrawer from '@/components/project/MusicDrawer';
 import ThemeDrawer, { ThemePreset } from '@/components/theme/ThemeDrawer';
 import ProjectViewSwitch from '@/components/project/ProjectViewSwitch';
 import CalendarDrawer from '@/components/project/CalendarDrawer';
 import QuickNoteModal from '@/components/project/QuickNoteModal';
+
+import SettingsPanel, { type TimerMode, type StayOnTaskFallback, type SettingsTabId } from '@/components/playarea/SettingsPanel';
 
 const MODE_CONFIG = {
   focus: 25 * 60,
@@ -68,22 +82,17 @@ const parseTimeInput = (value: string) => {
 const clampTimerSeconds = (value: number) => Math.min(MAX_TIMER_SECONDS, Math.max(MIN_TIMER_SECONDS, value));
 
 const DAILY_POMODORO_STORAGE_KEY = 'pomodroDailyProgress';
+const PROJECT_STATS_STORAGE_KEY = 'pomodroProjectStats';
+const DAILY_STATS_STORAGE_KEY = 'pomodroDailyStats';
+const SESSION_RECORDS_STORAGE_KEY = 'pomodroSessionRecords';
+
 const getTodayKey = () => new Date().toISOString().split('T')[0];
 
 const formatPlannedMinutes = (totalMinutes: number) => {
-  if (totalMinutes <= 0 || Number.isNaN(totalMinutes)) return '0m';
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes}m`;
-  if (minutes === 0) return `${hours}h`;
-  return `${hours}h ${minutes}m`;
+  if (totalMinutes <= 0 || Number.isNaN(totalMinutes)) return '0h';
+  const hours = (totalMinutes / 60).toFixed(1);
+  return `${hours}h`;
 };
-
-const mockBoardTasks: BoardTaskCard[] = [
-  { id: 'board-1', title: 'Moodboard hero frames', priority: 'high', duration: 45, status: 'todo' },
-  { id: 'board-2', title: 'Audio cleanup', priority: 'medium', duration: 25, status: 'planned' },
-  { id: 'board-3', title: 'Client recap notes', priority: 'low', duration: 15, status: 'achieved' },
-];
 
 const hexToRgba = (hex: string, alpha = 1) => {
   let normalized = hex.replace('#', '');
@@ -101,26 +110,47 @@ const hexToRgba = (hex: string, alpha = 1) => {
 };
 
 export default function ProjectPlayAreaPage() {
-  const router = useRouter();
   const params = useParams<{ projectId: string }>();
   const projectId = params?.projectId;
+  const router = useRouter();
   const [mode, setMode] = useState<'focus' | 'short' | 'long'>('focus');
   const [sessionDuration, setSessionDuration] = useState(MODE_CONFIG.focus);
   const [timeLeft, setTimeLeft] = useState(MODE_CONFIG.focus);
   const [isRunning, setIsRunning] = useState(false);
   const [taskBoardOpen, setTaskBoardOpen] = useState(false);
-  const [boardTasks, setBoardTasks] = useState<BoardTaskCard[]>(mockBoardTasks);
+  const [boardTasks, setBoardTasks] = useState<BoardTaskCard[]>([]);
   const [musicDrawerOpen, setMusicDrawerOpen] = useState(false);
   const [currentTrackId, setCurrentTrackId] = useState<string | null>(null);
   const [themeDrawerOpen, setThemeDrawerOpen] = useState(false);
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [themeWallpaper, setThemeWallpaper] = useState<string | null>(null);
   const [currentBoardTask, setCurrentBoardTask] = useState<BoardTaskCard | null>(null);
+
+  // Create stable task signature for useEffect dependencies
+  const taskSignature = useMemo(
+    () =>
+      boardTasks
+        .map(
+          (t) =>
+            `${t.id}:${t.sortOrder}:${t.completedAt ? 'done' : 'todo'}:${t.status}`
+        )
+        .join(','),
+    [boardTasks]
+  );
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const debouncedFetchBoardTasks = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchBoardTasks();
+    }, 500);
+  }, []);
   const [streakCount, setStreakCount] = useState(3);
   const [timeInput, setTimeInput] = useState(formatSecondsToInput(MODE_CONFIG.focus));
   const [isEditingTime, setIsEditingTime] = useState(false);
   const [activeControl, setActiveControl] = useState<'play' | 'pause' | null>(null);
-  const [missionEditorOpen, setMissionEditorOpen] = useState(false);
   const [taskTimeInputs, setTaskTimeInputs] = useState<Record<string, string>>({});
   const [showInterface, setShowInterface] = useState(true);
   const [isCalendarOpen, setCalendarOpen] = useState(false);
@@ -137,39 +167,75 @@ export default function ProjectPlayAreaPage() {
     chip: 'rgba(255,255,255,0.08)',
   });
 
-  const plannedTaskOptions = boardTasks.filter((task) => task.status !== 'achieved');
+  const layoutStyle = useMemo(() => ({
+    backgroundColor: themeColors.surface,
+  }), [themeColors.surface]);
+
+  const panelStyle = useMemo(() => ({
+    backgroundColor: themeColors.panel,
+    borderColor: themeColors.border,
+  }), [themeColors.panel, themeColors.border]);
+
+  const chipStyle = useMemo(() => ({
+    backgroundColor: themeColors.chip,
+    borderColor: themeColors.border,
+  }), [themeColors.chip, themeColors.border]);
+  const alertTaskOptions = useMemo(
+    () => boardTasks.map((task) => ({ id: task.id, title: task.title })),
+    [boardTasks],
+  );
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTimerType, setSettingsTimerType] = useState<TimerMode>('pomodoro');
+  const [stayOnTaskInterval, setStayOnTaskInterval] = useState(5);
+  const [stayOnTaskRepeat, setStayOnTaskRepeat] = useState(true);
+  const [stayOnTaskModeSelected, setStayOnTaskModeSelected] = useState(false);
+  const [stayOnTaskFallback, setStayOnTaskFallback] = useState<StayOnTaskFallback>('focused');
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('timer');
+  const [settingsTabFocusSignal, setSettingsTabFocusSignal] = useState(0);
+  const [alertSectionFocusSignal, setAlertSectionFocusSignal] = useState(0);
+  const [selectedAlertTaskId, setSelectedAlertTaskId] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [lastCompletedTask, setLastCompletedTask] = useState<BoardTaskCard | null>(null);
+
+  // Stats tracking state
+  const [projectStats, setProjectStats] = useState<ProjectStats>(() => ({
+    projectId: projectId || '',
+    dailyGoals: {
+      tasksPerDay: 3,
+      sessionsPerDay: 8,
+      hoursPerDay: 4,
+    },
+    weeklyGoals: {
+      tasksPerWeek: 15,
+      sessionsPerWeek: 40,
+      hoursPerWeek: 20,
+    },
+    currentStreak: 0,
+    longestStreak: 0,
+    totalTasksCompleted: 0,
+    totalSessionsCompleted: 0,
+    totalHoursWorked: 0,
+    lastActiveDate: getTodayKey(),
+  }));
+
+  const [dailyStats, setDailyStats] = useState<DailyStats>(() => ({
+    date: getTodayKey(),
+    tasksCompleted: 0,
+    sessionsCompleted: 0,
+    hoursWorked: 0,
+    targetTasks: 3,
+    targetSessions: 8,
+    targetHours: 4,
+    achieved: false,
+  }));
+
+  const [sessionRecords, setSessionRecords] = useState<SessionRecord[]>([]);
+
+  const plannedTaskOptions = boardTasks.filter((task) => task.status !== 'achieved' && !task.completedAt);
   const totalPlannedMinutes = plannedTaskOptions.reduce((sum, task) => sum + task.duration, 0);
 
-  useEffect(() => {
-    setTaskTimeInputs((prev) => {
-      const next: Record<string, string> = {};
-      boardTasks.forEach((task) => {
-        next[task.id] = prev[task.id] ?? formatMinutesToClock(task.duration);
-      });
-      return next;
-    });
-  }, [boardTasks]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem(DAILY_POMODORO_STORAGE_KEY);
-    const today = getTodayKey();
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed?.date === today) {
-          setDailyPomodoro({ date: parsed.date, count: Number(parsed.count) || 0 });
-          return;
-        }
-      } catch (error) {
-        console.warn('Unable to parse daily pomodoro progress', error);
-      }
-    }
-    const resetRecord = { date: today, count: 0 };
-    window.localStorage.setItem(DAILY_POMODORO_STORAGE_KEY, JSON.stringify(resetRecord));
-    setDailyPomodoro(resetRecord);
-  }, []);
-
+  // Move recordSessionCompletion here, before it's used
   const recordSessionCompletion = useCallback(() => {
     const today = getTodayKey();
     setDailyPomodoro((prev) => {
@@ -183,6 +249,304 @@ export default function ProjectPlayAreaPage() {
       return next;
     });
   }, []);
+
+  // Move handleSessionComplete here, after all state is defined
+  const handleSessionComplete = useCallback(() => {
+    setIsRunning(false);
+    setActiveControl(null);
+    recordSessionCompletion();
+
+    // Calculate streak properly - consecutive days of activity
+    const today = getTodayKey();
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    setProjectStats(prev => {
+      let newStreak = prev.currentStreak;
+
+      // Check if we had activity yesterday
+      const hadActivityYesterday = prev.lastActiveDate === yesterday;
+      const alreadyActiveToday = prev.lastActiveDate === today;
+
+      if (hadActivityYesterday && !alreadyActiveToday) {
+        // Continue streak - yesterday was active, today is new
+        newStreak = prev.currentStreak + 1;
+      } else if (!hadActivityYesterday && !alreadyActiveToday) {
+        // New streak starting today
+        newStreak = 1;
+      } else {
+        // Already active today or some other case, keep current streak
+        newStreak = prev.currentStreak;
+      }
+
+      const newStats = {
+        ...prev,
+        currentStreak: newStreak,
+        longestStreak: Math.max(prev.longestStreak, newStreak),
+        lastActiveDate: today,
+      };
+
+      // Save to localStorage
+      if (typeof window !== 'undefined' && projectId) {
+        window.localStorage.setItem(`${PROJECT_STATS_STORAGE_KEY}_${projectId}`, JSON.stringify(newStats));
+      }
+
+      return newStats;
+    });
+
+    // Record session details
+    const sessionStart = new Date(Date.now() - (sessionDuration * 1000));
+    const sessionEnd = new Date();
+    const sessionDurationMinutes = sessionDuration / 60;
+
+    const sessionRecord: SessionRecord = {
+      id: crypto.randomUUID(),
+      taskId: currentBoardTask?.id || '',
+      taskTitle: currentBoardTask?.title || 'No task',
+      startTime: sessionStart.toISOString(),
+      endTime: sessionEnd.toISOString(),
+      duration: sessionDurationMinutes,
+      type: mode,
+      completed: true,
+    };
+
+    setSessionRecords(prev => {
+      const updated = [...prev, sessionRecord];
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(SESSION_RECORDS_STORAGE_KEY, JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    if (currentBoardTask) {
+      // Mark current task as achieved
+      setBoardTasks((prev) =>
+        prev.map((task) => (task.id === currentBoardTask.id ? { ...task, status: 'achieved' } : task))
+      );
+
+      // Update task session count and actual duration
+      const currentSessions = currentBoardTask.sessionsCompleted || 0;
+      const currentActualDuration = currentBoardTask.actualDuration || 0;
+      const newSessions = currentSessions + (mode === 'focus' ? 1 : 0);
+      const newActualDuration = currentActualDuration + (mode === 'focus' ? sessionDurationMinutes : 0);
+
+      setBoardTasks((prev) =>
+        prev.map((task) =>
+          task.id === currentBoardTask.id
+            ? {
+                ...task,
+                sessionsCompleted: newSessions,
+                actualDuration: newActualDuration,
+                completedAt: mode === 'focus' ? sessionEnd.toISOString() : task.completedAt,
+              }
+            : task
+        )
+      );
+
+      // Update daily stats
+      setDailyStats(prev => {
+        const newStats = {
+          ...prev,
+          sessionsCompleted: prev.sessionsCompleted + 1,
+          hoursWorked: prev.hoursWorked + (sessionDurationMinutes / 60),
+          tasksCompleted: mode === 'focus' && currentBoardTask.status === 'todo' ? prev.tasksCompleted + 1 : prev.tasksCompleted,
+          achieved: false, // Recalculate below
+        };
+
+        // Check if goals are achieved
+        newStats.achieved = newStats.tasksCompleted >= newStats.targetTasks &&
+                          newStats.sessionsCompleted >= newStats.targetSessions &&
+                          newStats.hoursWorked >= newStats.targetHours;
+
+        // Save to localStorage
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(`${DAILY_STATS_STORAGE_KEY}_${getTodayKey()}`, JSON.stringify(newStats));
+        }
+
+        return newStats;
+      });
+
+      // Update project stats
+      setProjectStats(prev => {
+        const newProjectStats = {
+          ...prev,
+          totalSessionsCompleted: prev.totalSessionsCompleted + 1,
+          totalHoursWorked: prev.totalHoursWorked + (sessionDurationMinutes / 60),
+          totalTasksCompleted: mode === 'focus' && currentBoardTask.status === 'todo' ? prev.totalTasksCompleted + 1 : prev.totalTasksCompleted,
+          lastActiveDate: getTodayKey(),
+        };
+
+        // Save to localStorage
+        if (typeof window !== 'undefined' && projectId) {
+          window.localStorage.setItem(`${PROJECT_STATS_STORAGE_KEY}_${projectId}`, JSON.stringify(newProjectStats));
+        }
+
+        return newProjectStats;
+      });
+
+      // Store the completed task for auto-progression
+      setLastCompletedTask(currentBoardTask);
+
+      // Auto-progress to next task
+      if (mode === 'focus') {
+        // After focus session, go to short break but keep the task for reference
+        setMode('short');
+        const newDuration = MODE_CONFIG.short;
+        setSessionDuration(newDuration);
+        setTimeLeft(newDuration);
+        setTimeInput(formatSecondsToInput(newDuration));
+        setIsRunning(true); // Auto-start the short break
+        setActiveControl('play');
+        // Don't clear currentBoardTask here - keep it for short break completion
+      } else if (mode === 'short') {
+        // After short break, stop the session - user can manually start next task
+        setCurrentBoardTask(null);
+        setLastCompletedTask(null);
+        // Don't auto-start next task - let user choose what to do next
+      }
+    }
+  }, [recordSessionCompletion, currentBoardTask, mode, boardTasks, sessionDuration, projectId]);
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleSessionComplete();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isRunning, handleSessionComplete]);
+
+  useEffect(() => {
+    if (!isEditingTime) {
+      setTimeInput(formatSecondsToInput(timeLeft));
+    }
+  }, [timeLeft, isEditingTime]);
+
+  useEffect(() => {
+    setTaskTimeInputs((prev) => {
+      const next: Record<string, string> = {};
+      boardTasks.forEach((task) => {
+        // Always use the current task duration, don't preserve old input values
+        next[task.id] = formatMinutesToClock(task.duration);
+      });
+      return next;
+    });
+  }, [boardTasks]);
+
+  useEffect(() => {
+    if (boardTasks.length === 0) {
+      setSelectedAlertTaskId(null);
+      return;
+    }
+    setSelectedAlertTaskId((prev) => {
+      if (prev && boardTasks.some((task) => task.id === prev)) {
+        return prev;
+      }
+      return currentBoardTask?.id ?? boardTasks[0].id;
+    });
+  }, [boardTasks, currentBoardTask]);
+
+  // Auto-select first incomplete task by sort order (dynamic current mission)
+  useEffect(() => {
+    if (boardTasks.length === 0) {
+      if (currentBoardTask) {
+        setCurrentBoardTask(null);
+      }
+      return;
+    }
+
+    const sortedTasks = [...boardTasks].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    const firstIncomplete = sortedTasks.find((task) => !task.completedAt);
+
+    if (firstIncomplete) {
+      if (!currentBoardTask || currentBoardTask.id !== firstIncomplete.id) {
+        handleSelectCurrentTask(firstIncomplete.id);
+      }
+    } else if (currentBoardTask) {
+      setCurrentBoardTask(null);
+    }
+  }, [taskSignature, currentBoardTask?.id]);
+
+  // Clear currentBoardTask if it's no longer in boardTasks
+  useEffect(() => {
+    if (currentBoardTask && !boardTasks.some((task) => task.id === currentBoardTask.id)) {
+      setCurrentBoardTask(null);
+    }
+  }, [boardTasks, currentBoardTask]);
+
+  // Load project stats from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined' || !projectId) return;
+    const stored = window.localStorage.getItem(`${PROJECT_STATS_STORAGE_KEY}_${projectId}`);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setProjectStats(parsed);
+        setStreakCount(parsed.currentStreak || 0); // Initialize streak display
+      } catch (error) {
+        console.warn('Unable to parse project stats', error);
+      }
+    }
+  }, [projectId]);
+
+  // Load daily stats from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const today = getTodayKey();
+    const stored = window.localStorage.getItem(`${DAILY_STATS_STORAGE_KEY}_${today}`);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setDailyStats(parsed);
+      } catch (error) {
+        console.warn('Unable to parse daily stats', error);
+      }
+    }
+  }, []);
+
+  // Load session records from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem(SESSION_RECORDS_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setSessionRecords(parsed);
+      } catch (error) {
+        console.warn('Unable to parse session records', error);
+      }
+    }
+  }, []);
+
+  // Warn user before page refresh/close to prevent losing session data
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (isRunning || currentBoardTask) {
+        event.preventDefault();
+        event.returnValue = 'You have an active Pomodoro session. Are you sure you want to leave? Your progress and session data may be lost.';
+        return event.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isRunning, currentBoardTask]);
+
+  useEffect(() => {
+    if (projectId) {
+      fetchBoardTasks();
+    }
+  }, [projectId]);
 
   const handleTaskTimeInputChange = (taskId: string, value: string) => {
     if (!/^[0-9:]*$/.test(value)) return;
@@ -236,22 +600,118 @@ export default function ProjectPlayAreaPage() {
     setCurrentBoardTask(null);
   };
 
+  const handleAlertSettingsOpen = () => {
+    if (currentBoardTask?.id) {
+      setSelectedAlertTaskId(currentBoardTask.id);
+    }
+    setSettingsInitialTab('timer');
+    setSettingsTabFocusSignal((prev) => prev + 1);
+    setAlertSectionFocusSignal((prev) => prev + 1);
+    setSettingsOpen(true);
+  };
+
   const handleBoardStatusChange = (taskId: string, status: BoardTaskStatus) => {
     setBoardTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, status } : task)));
   };
 
-  const handleBoardTaskUpdate = (taskId: string, updates: Partial<Omit<BoardTaskCard, 'id'>>) => {
-    setBoardTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, ...updates } : task)));
+  const handleBoardTaskUpdate = async (taskId: string, updates: Partial<Omit<BoardTaskCard, 'id'>>) => {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          taskId,
+          updates,
+        }),
+      });
+
+      if (response.ok) {
+        const updatedTask = await response.json();
+        console.log('✅ Task updated successfully:', updatedTask.id);
+        setBoardTasks((prev) => prev.map((task) =>
+          task.id === taskId ? { ...task, ...updates } : task
+        ));
+        // Show success toast
+        // Note: Add toast notification here if you have a toast system
+        console.log('✅ Task updated');
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Failed to update task:', errorData);
+        throw new Error(errorData.error || 'Failed to update task');
+      }
+    } catch (error) {
+      console.error('❌ Error updating task:', error);
+      throw error;
+    }
   };
 
-  const handleAddBoardTask = (task: Omit<BoardTaskCard, 'id'>) => {
-    setBoardTasks((prev) => [...prev, { ...task, id: crypto.randomUUID() }]);
+  const handleAddBoardTask = async (task: Omit<BoardTaskCard, 'id'>) => {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: task.title,
+          priority: task.priority,
+          duration: task.duration,
+          status: task.status,
+          projectId: projectId,
+          targetSessions: task.targetSessions,
+          dailyGoal: task.dailyGoal,
+        }),
+      });
+
+      if (response.status === 201) {
+        const createdTask = await response.json();
+        console.log('✅ Task created successfully:', createdTask.id);
+        setBoardTasks((prev) => [createdTask, ...prev]);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Failed to create task:', errorData);
+        throw new Error(errorData.error || 'Failed to create task');
+      }
+    } catch (error) {
+      console.error('❌ Error creating task:', error);
+      throw error;
+    }
   };
 
-  const handleDeleteBoardTask = (taskId: string) => {
-    setBoardTasks((prev) => prev.filter((task) => task.id !== taskId));
-    if (currentBoardTask?.id === taskId) {
-      setCurrentBoardTask(null);
+  const handleDeleteBoardTask = async (taskId: string) => {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          taskId,
+        }),
+      });
+
+      if (response.status === 204) {
+        console.log('✅ Task deleted successfully from database');
+        setBoardTasks((prev) => prev.filter((task) => task.id !== taskId));
+        if (currentBoardTask?.id === taskId) {
+          setCurrentBoardTask(null);
+        }
+      } else if (response.status === 404) {
+        console.error('❌ Task not found');
+        setBoardTasks((prev) => prev.filter((task) => task.id !== taskId));
+        if (currentBoardTask?.id === taskId) {
+          setCurrentBoardTask(null);
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Delete failed:', response.status, errorData);
+        throw new Error(errorData.error || 'Failed to delete task');
+      }
+    } catch (error) {
+      console.error('❌ Error deleting task:', error);
+      throw error;
     }
   };
 
@@ -263,41 +723,41 @@ export default function ProjectPlayAreaPage() {
     setTaskBoardOpen(false);
   };
 
-  const handleSessionComplete = useCallback(() => {
-    setIsRunning(false);
-    setActiveControl(null);
-    setStreakCount((count) => count + 1);
-    recordSessionCompletion();
-    if (currentBoardTask) {
-      setBoardTasks((prev) =>
-        prev.map((task) => (task.id === currentBoardTask.id ? { ...task, status: 'achieved' } : task))
-      );
+  const fetchBoardTasks = async () => {
+    try {
+      const response = await fetch(`/api/tasks?projectId=${projectId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const allTasks = data.tasks || [];
+        setBoardTasks(allTasks);
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    }
+  };
+
+  const selectedPriority = currentBoardTask ? PRIORITY_META[currentBoardTask.priority] : null;
+  const currentModeLabel =
+    mode === 'focus' ? 'Focus sprint' : mode === 'short' ? 'Short break' : 'Long break';
+
+  const handleSelectCurrentTask = (taskId: string) => {
+    if (!taskId) {
       setCurrentBoardTask(null);
+      return;
     }
-  }, [recordSessionCompletion, currentBoardTask]);
-
-  useEffect(() => {
-    if (!isRunning) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSessionComplete();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isRunning, handleSessionComplete]);
-
-  useEffect(() => {
-    if (!isEditingTime) {
-      setTimeInput(formatSecondsToInput(timeLeft));
+    const selected = boardTasks.find((task) => task.id === taskId);
+    if (selected) {
+      setMode('focus');
+      setCurrentBoardTask(selected);
+      applyDuration(selected.duration * 60);
     }
-  }, [timeLeft, isEditingTime]);
+  };
+
+  const handleTimeInputChange = (value: string) => {
+    if (/^[0-9:]*$/.test(value)) {
+      setTimeInput(value);
+    }
+  };
 
   const commitTimeInput = () => {
     const parsed = parseTimeInput(timeInput);
@@ -307,12 +767,6 @@ export default function ProjectPlayAreaPage() {
       setTimeInput(formatSecondsToInput(timeLeft));
     }
     setIsEditingTime(false);
-  };
-
-  const handleTimeInputChange = (value: string) => {
-    if (/^[0-9:]*$/.test(value)) {
-      setTimeInput(value);
-    }
   };
 
   const handleTimeInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -337,20 +791,6 @@ export default function ProjectPlayAreaPage() {
     setActiveControl('play');
   };
 
-  const layoutStyle = useMemo(() => ({
-    backgroundColor: themeColors.surface,
-  }), [themeColors.surface]);
-
-  const panelStyle = useMemo(() => ({
-    backgroundColor: themeColors.panel,
-    borderColor: themeColors.border,
-  }), [themeColors.panel, themeColors.border]);
-
-  const chipStyle = useMemo(() => ({
-    backgroundColor: themeColors.chip,
-    borderColor: themeColors.border,
-  }), [themeColors.chip, themeColors.border]);
-
   const handlePause = () => {
     setIsRunning(false);
     setActiveControl('pause');
@@ -362,30 +802,21 @@ export default function ProjectPlayAreaPage() {
     setActiveControl(null);
   };
 
-  const handleSelectCurrentTask = (taskId: string, closeEditor = false) => {
-    if (!taskId) {
-      setCurrentBoardTask(null);
-      if (closeEditor) setMissionEditorOpen(false);
-      return;
-    }
-    const selected = boardTasks.find((task) => task.id === taskId);
-    if (selected) {
-      setMode('focus');
-      setCurrentBoardTask(selected);
-      applyDuration(selected.duration * 60);
-      if (closeEditor) setMissionEditorOpen(false);
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
     }
   };
-
-  const selectedPriority = currentBoardTask ? PRIORITY_META[currentBoardTask.priority] : null;
-  const currentModeLabel =
-    mode === 'focus' ? 'Focus sprint' : mode === 'short' ? 'Short break' : 'Long break';
 
   return (
     <div className="relative min-h-screen">
       <div
         className={`pointer-events-none absolute inset-0 -z-10 transition-opacity duration-500 ${
-          themeWallpaper ? 'opacity-100' : 'opacity-0'
+            themeWallpaper ? 'opacity-100' : 'opacity-0'
         }`}
         style={{
           backgroundImage: themeWallpaper ? `url(${themeWallpaper})` : undefined,
@@ -394,6 +825,7 @@ export default function ProjectPlayAreaPage() {
         }}
       />
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-black/60 via-black/35 to-black/65" />
+
       <div className="fixed left-6 top-6 z-50">
         <button
           type="button"
@@ -405,6 +837,7 @@ export default function ProjectPlayAreaPage() {
           Back
         </button>
       </div>
+
       {showInterface && (
         <div className="fixed right-6 top-6 z-50 flex items-center gap-3">
           <button
@@ -442,8 +875,22 @@ export default function ProjectPlayAreaPage() {
             <Palette className="h-4 w-4" />
             Theme
           </button>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className={`inline-flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-semibold text-white shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition ${
+              settingsOpen
+                ? 'border-purple-300/60 bg-purple-400/25'
+                : 'border-white/20 bg-white/10/80 hover:border-white/50 hover:bg-white/15'
+            }`}
+            aria-label="Open settings"
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </button>
         </div>
       )}
+
       <PlayAreaLayout
         wrapTop={false}
         showBackgroundLayers={false}
@@ -478,10 +925,8 @@ export default function ProjectPlayAreaPage() {
                     <button
                       type="button"
                       aria-label="Edit mission"
-                      onClick={() => setMissionEditorOpen((prev) => !prev)}
-                      className={`inline-flex items-center justify-center text-white/70 transition hover:text-white ${
-                        missionEditorOpen ? 'text-white' : ''
-                      }`}
+                      onClick={() => setTaskBoardOpen(true)}
+                      className={`inline-flex items-center justify-center text-white/70 transition hover:text-white`}
                     >
                       <PenSquare className="h-4 w-4" />
                     </button>
@@ -528,88 +973,7 @@ export default function ProjectPlayAreaPage() {
                   <span className="text-base font-semibold text-white">{dailyPomodoro.count}</span>
                 </div>
               </div>
-              {missionEditorOpen && (
-                <div className="mt-4 rounded-2xl border p-4" style={panelStyle}>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs uppercase tracking-[0.35em] text-white/50">Planned tasks</p>
-                    <button
-                      type="button"
-                      onClick={() => setMissionEditorOpen(false)}
-                      className="text-xs text-white/60 hover:text-white"
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <div className="mt-3 space-y-2 max-h-60 overflow-y-auto pr-1">
-                    {plannedTaskOptions.map((task) => (
-                      <div
-                        key={task.id}
-                        className={`rounded-2xl border px-4 py-3 text-sm transition ${
-                          currentBoardTask?.id === task.id
-                            ? 'border-emerald-300/70 bg-emerald-400/10 text-white'
-                            : 'border-white/10 bg-white/5/40 text-white/80 hover:border-white/30'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleSelectCurrentTask(task.id, true)}
-                            className="text-left"
-                          >
-                            <div className="font-medium text-white">{task.title}</div>
-                            <p className="text-[11px] text-white/50">{PRIORITY_META[task.priority].label}</p>
-                          </button>
-                          <div className="flex items-center gap-2">
-                            <label htmlFor={`task-timer-${task.id}`} className="text-[10px] uppercase tracking-[0.25em] text-white/60">
-                              Timer
-                            </label>
-                            <input
-                              id={`task-timer-${task.id}`}
-                              type="text"
-                              value={taskTimeInputs[task.id] ?? formatMinutesToClock(task.duration)}
-                              onChange={(event) => handleTaskTimeInputChange(task.id, event.target.value)}
-                              onBlur={() => commitTaskTimeInput(task.id)}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter') {
-                                  event.preventDefault();
-                                  commitTaskTimeInput(task.id);
-                                  (event.currentTarget as HTMLInputElement).blur();
-                                }
-                                if (event.key === 'Escape') {
-                                  event.preventDefault();
-                                  setTaskTimeInputs((prev) => ({
-                                    ...prev,
-                                    [task.id]: formatMinutesToClock(task.duration),
-                                  }));
-                                  (event.currentTarget as HTMLInputElement).blur();
-                                }
-                              }}
-                              className="w-20 rounded-xl border border-white/20 bg-black/30 px-2 py-1 text-center text-sm text-white/90 focus:border-white/60 focus:outline-none"
-                              placeholder="MM:SS"
-                              inputMode="numeric"
-                              aria-label={`Edit timer for ${task.title}`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {!plannedTaskOptions.length && (
-                      <p className="text-xs text-white/50">No planned tasks available. Use the task board to plan your missions.</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMissionEditorOpen(false);
-                      setTaskBoardOpen(true);
-                    }}
-                    className="mt-4 inline-flex items-center justify-center rounded-full border border-dashed border-white/30 px-4 py-2 text-xs text-white/80 hover:border-white/60"
-                  >
-                    Open task board
-                  </button>
-                </div>
-              )}
-              </div>
+            </div>
             )}
 
             <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6">
@@ -637,6 +1001,7 @@ export default function ProjectPlayAreaPage() {
                     onStart={handleStart}
                     onPause={handlePause}
                     onReset={handleReset}
+                    onAlertSettings={handleAlertSettingsOpen}
                   />
                 </div>
               </div>
@@ -644,7 +1009,7 @@ export default function ProjectPlayAreaPage() {
           </div>
         }
       />
-      <TaskBoardModal
+      <TodoTaskBoardModal
         open={showInterface && taskBoardOpen}
         tasks={boardTasks}
         onClose={() => setTaskBoardOpen(false)}
@@ -654,6 +1019,9 @@ export default function ProjectPlayAreaPage() {
         onApplyTimer={handleApplyTimerFromBoard}
         currentTaskId={currentBoardTask?.id ?? null}
         onDeleteTask={handleDeleteBoardTask}
+        projectId={projectId}
+        onTasksLoaded={(tasks) => setBoardTasks(tasks)}
+        onRefresh={debouncedFetchBoardTasks}
       />
       <MusicDrawer
         open={showInterface && musicDrawerOpen}
@@ -679,36 +1047,58 @@ export default function ProjectPlayAreaPage() {
         content={noteContent}
         onChange={setNoteContent}
       />
-      <button
-        type="button"
-        onClick={() => {
-          setShowInterface((prev) => {
-            const next = !prev;
-            if (!next) {
-              setMissionEditorOpen(false);
-              setMusicDrawerOpen(false);
-              setTaskBoardOpen(false);
-              setThemeDrawerOpen(false);
-              setCalendarOpen(false);
-              setNoteOpen(false);
-            }
-            return next;
-          });
-        }}
-        className="fixed bottom-8 right-8 z-50 text-white"
-        aria-label={showInterface ? 'Hide interface' : 'Show interface'}
-      >
-        <span
-          className={`inline-flex h-16 w-16 items-center justify-center text-4xl ${
-            showInterface
-              ? 'text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.9)]'
-              : 'text-cyan-200 drop-shadow-[0_0_35px_rgba(59,225,255,0.85)]'
+      <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3 text-white">
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className={`inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/35 text-white shadow-[0_10px_40px_rgba(0,0,0,0.45)] backdrop-blur transition hover:border-white/40 ${
+            isFullscreen ? 'border-emerald-300/70 text-emerald-100' : ''
           }`}
-          aria-hidden
+          aria-label={isFullscreen ? 'Exit full screen' : 'Enter full screen'}
         >
-          {showInterface ? '👁️' : '🙈'}
-        </span>
-      </button>
+          {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setShowInterface((prev) => {
+              const next = !prev;
+              if (!next) {
+                setMusicDrawerOpen(false);
+                setTaskBoardOpen(false);
+                setThemeDrawerOpen(false);
+                setCalendarOpen(false);
+                setNoteOpen(false);
+              }
+              return next;
+            });
+          }}
+          className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-white/25 bg-black/40 text-white shadow-[0_10px_45px_rgba(0,0,0,0.55)] backdrop-blur transition hover:border-white/50"
+          aria-label={showInterface ? 'Hide interface' : 'Show interface'}
+        >
+          {showInterface ? <Eye className="h-6 w-6" /> : <EyeOff className="h-6 w-6 text-cyan-200" />}
+        </button>
+      </div>
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        timerType={settingsTimerType}
+        onTimerTypeChange={setSettingsTimerType}
+        stayOnTaskInterval={stayOnTaskInterval}
+        onStayOnTaskIntervalChange={setStayOnTaskInterval}
+        stayOnTaskRepeat={stayOnTaskRepeat}
+        onStayOnTaskRepeatChange={setStayOnTaskRepeat}
+        stayOnTaskModeSelected={stayOnTaskModeSelected}
+        onStayOnTaskModeSelected={setStayOnTaskModeSelected}
+        stayOnTaskFallback={stayOnTaskFallback}
+        onStayOnTaskFallbackChange={setStayOnTaskFallback}
+        alertTaskOptions={alertTaskOptions}
+        selectedAlertTaskId={selectedAlertTaskId}
+        onAlertTaskSelect={(taskId) => setSelectedAlertTaskId(taskId || null)}
+        initialTab={settingsInitialTab}
+        tabFocusSignal={settingsTabFocusSignal}
+        focusAlertSectionSignal={alertSectionFocusSignal}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import dayjs from "dayjs";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 interface CalendarDrawerProps {
@@ -19,11 +19,16 @@ const buildCalendarDays = (monthBase: dayjs.Dayjs) => {
 
 export default function CalendarDrawer({ open, onClose }: CalendarDrawerProps) {
   const [monthOffset, setMonthOffset] = useState(0);
+  const [currentTime, setCurrentTime] = useState("");
 
   const referenceMonth = useMemo(() => dayjs().add(monthOffset, "month"), [monthOffset]);
   const calendarDays = useMemo(() => buildCalendarDays(referenceMonth), [referenceMonth]);
   const timelineDays = useMemo(() => Array.from({ length: 7 }, (_, idx) => dayjs().add(idx, "day")), []);
   const current = dayjs();
+
+  useEffect(() => {
+    setCurrentTime(current.format("h:mm A"));
+  }, []);
 
   const handlePrevMonth = () => setMonthOffset((prev) => prev - 1);
   const handleNextMonth = () => setMonthOffset((prev) => prev + 1);
@@ -46,7 +51,7 @@ export default function CalendarDrawer({ open, onClose }: CalendarDrawerProps) {
             <h2 className="text-3xl font-semibold" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               {current.format("dddd, MMM D")}
             </h2>
-            <p className="text-sm text-white/70">{current.format("h:mm A")}</p>
+            <p className="text-sm text-white/70">{currentTime || "--:-- --"}</p>
           </div>
           <div className="flex items-center gap-3">
             <button

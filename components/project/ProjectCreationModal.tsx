@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Clock, Repeat, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-type DurationType = 'date_range' | 'daily' | 'weekday_selection';
+type DurationType = 'date_range' | 'daily';
 
 interface ProjectCreationModalProps {
   isOpen: boolean;
@@ -19,7 +19,6 @@ export default function ProjectCreationModal({ isOpen, onClose }: ProjectCreatio
   const [durationType, setDurationType] = useState<DurationType>('date_range');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [selectedWeekdays, setSelectedWeekdays] = useState<Set<string>>(new Set());
   const [plannedHours, setPlannedHours] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -27,18 +26,6 @@ export default function ProjectCreationModal({ isOpen, onClose }: ProjectCreatio
       setCurrentStep(1);
     }
   }, [isOpen]);
-
-  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-  const toggleWeekday = (day: string) => {
-    const newSelected = new Set(selectedWeekdays);
-    if (newSelected.has(day)) {
-      newSelected.delete(day);
-    } else {
-      newSelected.add(day);
-    }
-    setSelectedWeekdays(newSelected);
-  };
 
   const getDatesBetween = (start: string, end: string): string[] => {
     const dates = [];
@@ -78,15 +65,12 @@ export default function ProjectCreationModal({ isOpen, onClose }: ProjectCreatio
       }
 
       // Prepare data
-      const weekdaysArray = durationType === 'weekday_selection' ? Array.from(selectedWeekdays) : [];
-
       const projectData = {
         user_id: user.id,
         project_name: projectName,
         duration_type: durationType,
         start_date: startDate || null,
         end_date: endDate || null,
-        weekdays: weekdaysArray,
         planned_hours: plannedHours,
         status: 'active'
       };
@@ -185,17 +169,6 @@ export default function ProjectCreationModal({ isOpen, onClose }: ProjectCreatio
                   <Clock className={`w-5 h-5 ${durationType === 'daily' ? 'text-[#f4b2ff]' : 'text-white/70'}`} />
                   <span className="text-white font-medium" style={{ fontFamily: "'Manrope', sans-serif" }}>Daily</span>
                 </button>
-                <button
-                  onClick={() => setDurationType('weekday_selection')}
-                  className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${
-                    durationType === 'weekday_selection'
-                      ? 'border-[#b57aff]/50 bg-[#b57aff]/10 shadow-lg shadow-[#b57aff]/20'
-                      : 'border-white/20 bg-white/5 hover:bg-white/10'
-                  } backdrop-blur-sm`}
-                >
-                  <Repeat className={`w-5 h-5 ${durationType === 'weekday_selection' ? 'text-[#b57aff]' : 'text-white/70'}`} />
-                  <span className="text-white font-medium" style={{ fontFamily: "'Manrope', sans-serif" }}>Weekday Selection</span>
-                </button>
               </div>
             </div>
 
@@ -227,29 +200,6 @@ export default function ProjectCreationModal({ isOpen, onClose }: ProjectCreatio
               </div>
             )}
 
-            {durationType === 'weekday_selection' && (
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-white/80 mb-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                  Select Weekdays
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {weekdays.map((day) => (
-                    <button
-                      key={day}
-                      onClick={() => toggleWeekday(day)}
-                      className={`px-3 py-2 rounded-full border transition-all ${
-                        selectedWeekdays.has(day)
-                          ? 'border-[#b57aff]/50 bg-[#b57aff]/20 text-[#b57aff] shadow-lg shadow-[#b57aff]/20'
-                          : 'border-white/20 bg-white/5 text-white/70 hover:bg-white/10'
-                      } backdrop-blur-sm`}
-                      style={{ fontFamily: "'Manrope', sans-serif" }}
-                    >
-                      {day}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         ) : (
           <>
@@ -299,27 +249,6 @@ export default function ProjectCreationModal({ isOpen, onClose }: ProjectCreatio
                 </div>
               )}
 
-              {durationType === 'weekday_selection' && (
-                <div className="space-y-3">
-                  {Array.from(selectedWeekdays).map((day) => (
-                    <div key={day} className="flex items-center gap-4">
-                      <label className="text-white/80 flex-1" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                        {day}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={plannedHours[day] || ''}
-                        onChange={(e) => handleHourChange(day, e.target.value)}
-                        className="w-20 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-[#b57aff]/50 focus:border-[#b57aff] backdrop-blur-sm"
-                        placeholder="0"
-                      />
-                      <span className="text-white/60 text-sm" style={{ fontFamily: "'Manrope', sans-serif" }}>hrs</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </>
         )}

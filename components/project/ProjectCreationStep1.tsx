@@ -1,9 +1,7 @@
 'use client';
 
-import { Calendar, Clock, Repeat, Info } from 'lucide-react';
+import { Calendar, Clock, Info } from 'lucide-react';
 import { useProjectCreation } from '@/hooks/useProjectCreation';
-
-const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function ProjectCreationStep1() {
   const {
@@ -11,9 +9,19 @@ export default function ProjectCreationStep1() {
     updateProjectName,
     updateDurationType,
     updateStartDate,
-    updateEndDate,
-    toggleWeekday
+    updateEndDate
   } = useProjectCreation();
+
+  const getToday = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
+  const addMonths = (dateStr: string, months: number) => {
+    const date = new Date(dateStr);
+    date.setMonth(date.getMonth() + months);
+    return date.toISOString().split('T')[0];
+  };
 
   const isDateRange = formData.durationType === 'date_range';
 
@@ -76,6 +84,7 @@ export default function ProjectCreationStep1() {
                       type="date"
                       value={formData.startDate}
                       onChange={(e) => updateStartDate(e.target.value)}
+                      min={getToday()}
                       className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#82f2ff]/50 focus:border-[#82f2ff] backdrop-blur-sm transition-all"
                     />
                   </div>
@@ -87,6 +96,8 @@ export default function ProjectCreationStep1() {
                       type="date"
                       value={formData.endDate}
                       onChange={(e) => updateEndDate(e.target.value)}
+                      min={formData.startDate || getToday()}
+                      max={formData.startDate ? addMonths(formData.startDate, 6) : undefined}
                       className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#82f2ff]/50 focus:border-[#82f2ff] backdrop-blur-sm transition-all"
                     />
                   </div>
@@ -105,17 +116,6 @@ export default function ProjectCreationStep1() {
             <Clock className={`w-5 h-5 ${formData.durationType === 'daily' ? 'text-[#f4b2ff]' : 'text-white/70'}`} />
             <span className="text-white font-medium" style={{ fontFamily: "'Manrope', sans-serif" }}>Daily</span>
           </button>
-          <button
-            onClick={() => updateDurationType('weekday_selection')}
-            className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${
-              formData.durationType === 'weekday_selection'
-                ? 'border-[#b57aff]/50 bg-[#b57aff]/10 shadow-lg shadow-[#b57aff]/20'
-                : 'border-white/20 bg-white/5 hover:bg-white/10'
-            } backdrop-blur-sm`}
-          >
-            <Repeat className={`w-5 h-5 ${formData.durationType === 'weekday_selection' ? 'text-[#b57aff]' : 'text-white/70'}`} />
-            <span className="text-white font-medium" style={{ fontFamily: "'Manrope', sans-serif" }}>Weekday Selection</span>
-          </button>
         </div>
 
         {formData.durationType === 'daily' && (
@@ -128,30 +128,6 @@ export default function ProjectCreationStep1() {
         )}
       </div>
 
-      {/* Conditional UI */}
-      {formData.durationType === 'weekday_selection' && (
-        <div>
-          <label className="block text-sm font-medium text-white/80 mb-4" style={{ fontFamily: "'Manrope', sans-serif" }}>
-            Select Weekdays
-          </label>
-          <div className="flex gap-2 flex-wrap">
-            {weekdays.map((day) => (
-              <button
-                key={day}
-                onClick={() => toggleWeekday(day)}
-                className={`px-3 py-2 rounded-full border transition-all ${
-                  formData.selectedWeekdays.includes(day)
-                    ? 'border-[#b57aff]/50 bg-[#b57aff]/20 text-[#b57aff] shadow-lg shadow-[#b57aff]/20'
-                    : 'border-white/20 bg-white/5 text-white/70 hover:bg-white/10'
-                } backdrop-blur-sm`}
-                style={{ fontFamily: "'Manrope', sans-serif" }}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

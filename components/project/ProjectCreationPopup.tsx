@@ -2,12 +2,14 @@
 
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useProjectCreation } from '@/hooks/useProjectCreation';
 import ProjectCreationStep1 from './ProjectCreationStep1';
 import ProjectCreationStep2 from './ProjectCreationStep2';
 
 export default function ProjectCreationPopup() {
   const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const {
     isOpen,
     currentStep,
@@ -20,6 +22,12 @@ export default function ProjectCreationPopup() {
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
+    setErrorMessage(null);
+    const { formData } = useProjectCreation.getState();
+    if (!formData.projectName.trim()) {
+      setErrorMessage('Project name is required');
+      return;
+    }
     await submitAndNavigate(router);
   };
 
@@ -44,7 +52,7 @@ export default function ProjectCreationPopup() {
           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 1 ? 'bg-[#82f2ff] text-black' : 'bg-white/20 text-white/60'}`}>
             1
           </div>
-          <div className={`flex-1 h-1 rounded ${currentStep >= 2 ? 'bg-[#82f2ff]' : 'bg-white/20'}`} />
+          <div className={`flex-1 h-1 rounded opacity-0 ${currentStep >= 2 ? 'bg-[#82f2ff]' : 'bg-white/20'}`} />
           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 2 ? 'bg-[#82f2ff] text-black' : 'bg-white/20 text-white/60'}`}>
             2
           </div>
@@ -54,6 +62,12 @@ export default function ProjectCreationPopup() {
         <div className="mb-8">
           {currentStep === 1 ? <ProjectCreationStep1 /> : <ProjectCreationStep2 />}
         </div>
+
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm" style={{ fontFamily: "'Manrope', sans-serif" }}>
+            {errorMessage}
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex gap-3">

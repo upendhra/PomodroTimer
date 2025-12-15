@@ -3,14 +3,13 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
-export type DurationType = 'date_range' | 'daily' | 'weekday_selection';
+export type DurationType = 'date_range' | 'daily';
 
 export interface ProjectFormData {
   projectName: string;
   durationType: DurationType;
   startDate: string;
   endDate: string;
-  selectedWeekdays: string[];
   plannedHours: Record<string, number>;
 }
 
@@ -37,7 +36,6 @@ interface ProjectCreationState {
   updateDurationType: (type: DurationType) => void;
   updateStartDate: (date: string) => void;
   updateEndDate: (date: string) => void;
-  toggleWeekday: (day: string) => void;
   updatePlannedHours: (key: string, hours: number) => void;
 
   // Submission
@@ -50,7 +48,6 @@ const initialFormData: ProjectFormData = {
   durationType: 'date_range',
   startDate: '',
   endDate: '',
-  selectedWeekdays: [],
   plannedHours: {},
 };
 
@@ -83,22 +80,44 @@ export const useProjectCreation = create<ProjectCreationState>((set, get) => ({
     formData: { ...state.formData, durationType }
   })),
 
-  updateStartDate: (startDate) => set((state) => ({
-    formData: { ...state.formData, startDate }
-  })),
+  updateStartDate: (startDate) => set((state) => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    let adjustedStartDate = startDate;
+    if (new Date(startDate) < today) {
+      adjustedStartDate = todayStr;
+    }
+    let newFormData = { ...state.formData, startDate: adjustedStartDate };
+    if (newFormData.endDate) {
+      const start = new Date(adjustedStartDate);
+      const end = new Date(newFormData.endDate);
+      const maxEnd = new Date(start);
+      maxEnd.setMonth(maxEnd.getMonth() + 6);
+      if (end > maxEnd) {
+        newFormData.endDate = maxEnd.toISOString().split('T')[0];
+      }
+      if (end < start) {
+        newFormData.endDate = adjustedStartDate;
+      }
+    }
+    return { formData: newFormData };
+  }),
 
-  updateEndDate: (endDate) => set((state) => ({
-    formData: { ...state.formData, endDate }
-  })),
-
-  toggleWeekday: (day) => set((state) => {
-    const { selectedWeekdays } = state.formData;
-    const newWeekdays = selectedWeekdays.includes(day)
-      ? selectedWeekdays.filter(d => d !== day)
-      : [...selectedWeekdays, day];
-    return {
-      formData: { ...state.formData, selectedWeekdays: newWeekdays }
-    };
+  updateEndDate: (endDate) => set((state) => {
+    let newFormData = { ...state.formData, endDate };
+    if (newFormData.startDate) {
+      const start = new Date(newFormData.startDate);
+      const end = new Date(endDate);
+      const maxEnd = new Date(start);
+      maxEnd.setMonth(maxEnd.getMonth() + 6);
+      if (end > maxEnd) {
+        newFormData.endDate = maxEnd.toISOString().split('T')[0];
+      }
+      if (end < start) {
+        newFormData.endDate = newFormData.startDate;
+      }
+    }
+    return { formData: newFormData };
   }),
 
   updatePlannedHours: (key, hours) => set((state) => ({
@@ -137,6 +156,25 @@ export const useProjectCreation = create<ProjectCreationState>((set, get) => ({
       // Prepare data for Supabase
       const { formData } = state;
       
+      // Compute planned_hours based on duration_type
+      let computedPlannedHours = { ...formData.plannedHours };
+      if (formData.durationType === 'date_range' && formData.plannedHours['perDay'] !== undefined) {
+        // Generate dates between start and end
+        const dates: string[] = [];
+        const startDate = new Date(formData.startDate);
+        const endDate = new Date(formData.endDate);
+        const current = new Date(startDate);
+        while (current <= endDate) {
+          dates.push(current.toISOString().split('T')[0]);
+          current.setDate(current.getDate() + 1);
+        }
+        // Set each date to the perDay value
+        computedPlannedHours = {};
+        dates.forEach(date => {
+          computedPlannedHours[date] = Number(formData.plannedHours['perDay']) || 0;
+        });
+      }
+      
       // Validate and format data
       const projectData = {
         user_id: user.id,
@@ -144,8 +182,7 @@ export const useProjectCreation = create<ProjectCreationState>((set, get) => ({
         duration_type: formData.durationType,
         start_date: formData.startDate || null,
         end_date: formData.endDate || null,
-        weekdays: Array.isArray(formData.selectedWeekdays) ? formData.selectedWeekdays : [],
-        planned_hours: formData.plannedHours || {},
+        planned_hours: computedPlannedHours,
         status: 'active'
       };
 

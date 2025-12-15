@@ -30,24 +30,20 @@ export default function ProjectCreationStep2() {
         </h3>
 
         {formData.durationType === 'date_range' && formData.startDate && formData.endDate && (
-          <div className="space-y-3 max-h-64 overflow-y-auto">
-            {getDatesBetween(formData.startDate, formData.endDate).map((date) => (
-              <div key={date} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
-                <label className="text-white/80 min-w-0 flex-1" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                  {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={formData.plannedHours[date] || ''}
-                  onChange={(e) => handleHourChange(date, e.target.value)}
-                  className="w-20 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-[#82f2ff]/50 focus:border-[#82f2ff] backdrop-blur-sm transition-all"
-                  placeholder="0"
-                />
-                <span className="text-white/60 text-sm" style={{ fontFamily: "'Manrope', sans-serif" }}>hrs</span>
-              </div>
-            ))}
+          <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+            <label className="text-white/80 flex-1" style={{ fontFamily: "'Manrope', sans-serif" }}>
+              Hours per day
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={formData.plannedHours['perDay'] || ''}
+              onChange={(e) => handleHourChange('perDay', e.target.value)}
+              className="w-20 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-[#82f2ff]/50 focus:border-[#82f2ff] backdrop-blur-sm transition-all"
+              placeholder="0"
+            />
+            <span className="text-white/60 text-sm" style={{ fontFamily: "'Manrope', sans-serif" }}>hrs</span>
           </div>
         )}
 
@@ -69,27 +65,6 @@ export default function ProjectCreationStep2() {
           </div>
         )}
 
-        {formData.durationType === 'weekday_selection' && (
-          <div className="space-y-3">
-            {formData.selectedWeekdays.map((day) => (
-              <div key={day} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
-                <label className="text-white/80 flex-1" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                  {day}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={formData.plannedHours[day] || ''}
-                  onChange={(e) => handleHourChange(day, e.target.value)}
-                  className="w-20 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-[#b57aff]/50 focus:border-[#b57aff] backdrop-blur-sm transition-all"
-                  placeholder="0"
-                />
-                <span className="text-white/60 text-sm" style={{ fontFamily: "'Manrope', sans-serif" }}>hrs</span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { Pause, Play, RotateCcw } from 'lucide-react';
+import { Bell, Pause, Play, RotateCcw } from 'lucide-react';
 
 interface TimerControlsProps {
   isRunning: boolean;
@@ -8,9 +8,17 @@ interface TimerControlsProps {
   onStart: () => void;
   onPause: () => void;
   onReset: () => void;
+  onAlertSettings: () => void;
 }
 
-export default function TimerControls({ isRunning, activeControl, onStart, onPause, onReset }: TimerControlsProps) {
+export default function TimerControls({
+  isRunning,
+  activeControl,
+  onStart,
+  onPause,
+  onReset,
+  onAlertSettings,
+}: TimerControlsProps) {
   const controlConfig = [
     {
       label: 'Start focus',
@@ -35,6 +43,15 @@ export default function TimerControls({ isRunning, activeControl, onStart, onPau
       disabled: false,
       key: 'reset' as const,
       className: 'bg-white/5 text-white/70 hover:bg-white/10',
+    },
+    {
+      label: 'Alert interval settings',
+      icon: Bell,
+      onClick: onAlertSettings,
+      disabled: false,
+      key: 'alert' as const,
+      className:
+        'border border-amber-300/70 bg-amber-400/15 text-amber-100 shadow-[0_12px_32px_rgba(251,191,36,0.35)] hover:border-amber-200/80 hover:text-white',
     },
   ];
 

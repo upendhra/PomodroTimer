@@ -28,8 +28,6 @@ export default function ProjectStats({ project }: ProjectStatsProps) {
         return 'Date Range';
       case 'daily':
         return 'Daily';
-      case 'weekday_selection':
-        return project.weekdays.length > 0 ? project.weekdays.join(', ') : 'Selected Days';
       default:
         return 'Flexible';
     }
