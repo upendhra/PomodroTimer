@@ -54,6 +54,7 @@ interface TodoTaskBoardModalProps {
   onTasksCleared?: () => void;
   onTasksLoaded?: (tasks: BoardTaskCard[]) => void;
   onRefresh?: () => void;
+  showTimerEdit?: boolean; // Hide timer edit when using default duration mode
 }
 
 const PRIORITY_OPTIONS: TaskPriority[] = ['high', 'medium', 'low'];
@@ -72,6 +73,7 @@ export default function TodoTaskBoardModal({
   onTasksCleared,
   onTasksLoaded,
   onRefresh,
+  showTimerEdit = true,
 }: TodoTaskBoardModalProps) {
   const [draftTitle, setDraftTitle] = useState('');
   const [draftPriority, setDraftPriority] = useState<TaskPriority>('medium');
@@ -141,9 +143,8 @@ export default function TodoTaskBoardModal({
     return modalTasks.filter((task) => task.status === 'todo');
   }, [modalTasks]);
 
-  const handleModalAddTask = async (task: Omit<BoardTaskCard, 'id'>) => {
-    // Create optimistic task
-    const tempId = 'temp-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  const handleModalAddTask = async (task: Omit<BoardTaskCard, 'id' | 'createdAt' | 'completedAt' | 'sessionsCompleted' | 'actualDuration' | 'sortOrder'>) => {
+    const tempId = `temp-${Date.now()}`;
     const optimisticTask: BoardTaskCard = {
       id: tempId,
       title: task.title,
@@ -160,11 +161,14 @@ export default function TodoTaskBoardModal({
     setModalTasks(prev => [...prev, optimisticTask]);
 
     try {
+      console.log('🔐 Creating task - checking authentication...');
+      
       const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Ensure cookies are sent
         body: JSON.stringify({
           title: task.title,
           priority: task.priority,
@@ -184,6 +188,10 @@ export default function TodoTaskBoardModal({
         setModalTasks(prev => prev.map(t => t.id === tempId ? createdTask : t));
         setTasksAddedDuringSession(prev => new Set(prev).add(createdTask.id));
         onRefresh?.();
+      } else if (response.status === 401) {
+        console.error('❌ Authentication required - please log in again');
+        alert('Your session has expired. Please refresh the page and log in again.');
+        throw new Error('Authentication required');
       } else {
         const errorData = await response.json();
         console.error('❌ Failed to create task in modal:', errorData);
@@ -198,14 +206,17 @@ export default function TodoTaskBoardModal({
   };
 
   const handleModalTaskUpdate = async (taskId: string, updates: Partial<Omit<BoardTaskCard, 'id'>>) => {
+    console.log('📝 handleModalTaskUpdate called:', { taskId, updates });
     try {
+      console.log('📝 Calling onTaskUpdate (handleBoardTaskUpdate)...');
       await onTaskUpdate(taskId, updates);
+      console.log('📝 onTaskUpdate completed, updating modalTasks...');
       setModalTasks(prev => prev.map(task =>
         task.id === taskId ? { ...task, ...updates } : task
       ));
       setTasksModifiedDuringSession(prev => new Set(prev).add(taskId));
       console.log('✅ Task updated in modal');
-      onRefresh?.();
+      // Removed onRefresh() to prevent race condition - parent component updates boardTasks directly
     } catch (error) {
       console.error('❌ Failed to update task in modal:', taskId, error);
     }
@@ -553,21 +564,23 @@ export default function TodoTaskBoardModal({
                 </option>
               ))}
             </select>
-            <div className="flex items-center gap-3 rounded-xl border border-white/10 px-4 py-2">
-              <Clock3 className="h-4 w-4 text-white/60" />
-              <input
-                type="number"
-                id="new-task-duration"
-                name="new-task-duration"
-                min={5}
-                max={180}
-                step={5}
-                value={draftDuration}
-                onChange={(e) => setDraftDuration(Number(e.target.value))}
-                className="w-16 bg-transparent text-white focus:outline-none"
-              />
-              <span className="text-white/50">min</span>
-            </div>
+            {showTimerEdit && (
+              <div className="flex items-center gap-3 rounded-xl border border-white/10 px-4 py-2">
+                <Clock3 className="h-4 w-4 text-white/60" />
+                <input
+                  type="number"
+                  id="new-task-duration"
+                  name="new-task-duration"
+                  min={5}
+                  max={180}
+                  step={5}
+                  value={draftDuration}
+                  onChange={(e) => setDraftDuration(Number(e.target.value))}
+                  className="w-16 bg-transparent text-white focus:outline-none"
+                />
+                <span className="text-white/50">min</span>
+              </div>
+            )}
             <button
               type="button"
               onClick={handleAdd}
@@ -599,12 +612,13 @@ export default function TodoTaskBoardModal({
                       <SortableTaskCard
                         key={task.id}
                         task={task}
-                        isCollapsed={collapsedTasks[task.id] ?? true}
+                        isCollapsed={collapsedTasks[task.id] ?? !showTimerEdit}
                         isCurrent={currentTaskId === task.id}
                         onToggleCollapse={() => setCollapsedTasks(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
                         onUpdate={(updates: Partial<Omit<BoardTaskCard, 'id'>>) => handleModalTaskUpdate(task.id, updates).catch(console.error)}
                         onApplyTimer={onApplyTimer}
                         onDelete={() => handleModalDeleteTask(task.id).catch(console.error)}
+                        showTimerEdit={showTimerEdit}
                       />
                     ))}
                   </SortableContext>
@@ -627,7 +641,7 @@ export default function TodoTaskBoardModal({
 };
 
 // SortableTaskCard component
-const SortableTaskCard = ({ task, isCollapsed, isCurrent, onToggleCollapse, onUpdate, onApplyTimer, onDelete }: {
+const SortableTaskCard = ({ task, isCollapsed, isCurrent, onToggleCollapse, onUpdate, onApplyTimer, onDelete, showTimerEdit }: {
   task: BoardTaskCard;
   isCollapsed: boolean;
   isCurrent: boolean;
@@ -635,6 +649,7 @@ const SortableTaskCard = ({ task, isCollapsed, isCurrent, onToggleCollapse, onUp
   onUpdate: (updates: Partial<Omit<BoardTaskCard, 'id'>>) => void;
   onApplyTimer?: (task: BoardTaskCard) => void;
   onDelete: () => void;
+  showTimerEdit?: boolean;
 }) => {
   const {
     attributes,
@@ -662,6 +677,7 @@ const SortableTaskCard = ({ task, isCollapsed, isCurrent, onToggleCollapse, onUp
         onApplyTimer={onApplyTimer}
         onDelete={onDelete}
         dragListeners={listeners}
+        showTimerEdit={showTimerEdit}
       />
     </div>
   );

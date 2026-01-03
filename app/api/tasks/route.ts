@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAnonClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { BoardTaskCard } from '@/components/playarea/types';
 
 // Create anon client for all operations (no auth required)
@@ -68,6 +70,10 @@ export async function GET(request: NextRequest) {
       targetSessions: task.target_sessions,
       dailyGoal: task.daily_goal, // Keep as number (0 or 1) as expected by BoardTaskCard type
       sortOrder: task.sort_order || 0,
+      timerMode: task.timer_mode,
+      customFocusTime: task.custom_focus_time,
+      customShortBreak: task.custom_short_break,
+      customLongBreak: task.custom_long_break,
     }));
 
     return NextResponse.json({ tasks: transformedTasks });
@@ -77,11 +83,43 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const createAuthedServerClient = async () => {
+  const cookieStore = await cookies();
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        }
+      }
+    }
+  );
+};
+
 export async function POST(request: NextRequest) {
   // CREATE new task
+  console.log('🔍 POST /api/tasks: Starting task creation');
+  
   try {
-    const supabase = createSupabaseClient();
-    const { title, priority, duration, status, projectId, targetSessions, dailyGoal } = await request.json();
+    const supabase = await createAuthedServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    console.log('🔍 Auth check:', { user: user?.id || 'null', error: authError?.message || 'none' });
+
+    if (authError || !user) {
+      console.log('❌ Auth failed, returning 401');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    console.log('✅ User authenticated:', user.id);
+
+    const { title, priority, duration, status, projectId, targetSessions, dailyGoal, timerMode, customFocusTime, customShortBreak, customLongBreak } = await request.json();
 
     // Validate required fields
     if (!title || !projectId) {
@@ -112,6 +150,7 @@ export async function POST(request: NextRequest) {
 
     const newTask = {
       id: crypto.randomUUID(), // Generate UUID on server
+      user_id: user.id,
       project_id: projectId,
       title: title.trim(),
       priority: priority || 'medium',
@@ -120,6 +159,10 @@ export async function POST(request: NextRequest) {
       target_sessions: targetSessions || 1,
       daily_goal: dailyGoal ? 1 : 0, // Convert boolean to integer (0=false, 1=true)
       sort_order: sortOrder,
+      timer_mode: timerMode || 'default',
+      custom_focus_time: customFocusTime,
+      custom_short_break: customShortBreak,
+      custom_long_break: customLongBreak,
     };
 
     const { data, error } = await supabase
@@ -130,11 +173,37 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('❌ Error creating task:', error);
-      return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      return NextResponse.json({ 
+        error: 'Failed to create task',
+        details: error.message || 'Unknown error',
+        code: error.code
+      }, { status: 500 });
     }
 
     console.log('✅ Task created:', data.id, 'Title:', data.title);
-    return NextResponse.json(data, { status: 201 });
+    
+    // Transform to BoardTaskCard format before returning
+    const transformedTask = {
+      id: data.id,
+      title: data.title,
+      priority: data.priority,
+      duration: data.duration,
+      status: data.status,
+      completedAt: data.completed_at,
+      sessionsCompleted: data.sessions_completed || 0,
+      actualDuration: data.actual_duration || 0,
+      createdAt: data.created_at,
+      targetSessions: data.target_sessions,
+      dailyGoal: data.daily_goal,
+      sortOrder: data.sort_order || 0,
+      timerMode: data.timer_mode,
+      customFocusTime: data.custom_focus_time,
+      customShortBreak: data.custom_short_break,
+      customLongBreak: data.custom_long_break,
+    };
+    
+    return NextResponse.json(transformedTask, { status: 201 });
   } catch (error) {
     console.error('❌ Error in POST task:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -160,6 +229,10 @@ export async function PATCH(request: NextRequest) {
     if (updates.actualDuration !== undefined) updateData.actual_duration = updates.actualDuration;
     if (updates.targetSessions !== undefined) updateData.target_sessions = updates.targetSessions;
     if (updates.dailyGoal !== undefined) updateData.daily_goal = updates.dailyGoal; // Already a number (0 or 1)
+    if (updates.timerMode !== undefined) updateData.timer_mode = updates.timerMode;
+    if (updates.customFocusTime !== undefined) updateData.custom_focus_time = updates.customFocusTime;
+    if (updates.customShortBreak !== undefined) updateData.custom_short_break = updates.customShortBreak;
+    if (updates.customLongBreak !== undefined) updateData.custom_long_break = updates.customLongBreak;
 
     // Only add sort_order to updateData if it exists in the database schema
     if (updates.sortOrder !== undefined) {

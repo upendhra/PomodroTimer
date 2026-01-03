@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState, memo } from 'react';
 import { Bell, ChevronDown, ChevronUp, Minus, Palette, Plus, Quote, Watch, User, X } from 'lucide-react';
+import ThemeSettings from '@/components/settings/ThemeSettings';
 
 export type TimerMode = 'pomodoro' | 'stopwatch' | 'countdown' | 'interval';
 export type StayOnTaskFallback = 'focused' | 'deviated';
+export type PomodoroDurationMode = 'default' | 'customised';
 export type SettingsTabId = 'timer' | 'theme' | 'quotes' | 'clock' | 'account';
 type AlertTaskOption = { id: string; title: string };
 
@@ -23,10 +25,25 @@ interface SettingsPanelProps {
   onStayOnTaskFallbackChange: (value: StayOnTaskFallback) => void;
   alertTaskOptions: AlertTaskOption[];
   selectedAlertTaskId: string | null;
+  selectedAlertTaskIds: string[];
   onAlertTaskSelect: (taskId: string) => void;
+  onAlertTaskIdsSelect: (taskIds: string[]) => void;
+  alertsEnabled: boolean;
+  onAlertsEnabledChange: (value: boolean) => void;
+  alertMode: 'common' | 'selective';
+  onAlertModeChange: (mode: 'common' | 'selective') => void;
   initialTab?: SettingsTabId;
   tabFocusSignal?: number;
   focusAlertSectionSignal?: number;
+  pomodoroDurationMode: PomodoroDurationMode;
+  onPomodoroDurationModeChange: (mode: PomodoroDurationMode) => void;
+  defaultFocusDuration: number;
+  onDefaultFocusDurationChange: (value: number) => void;
+  defaultShortBreak: number;
+  onDefaultShortBreakChange: (value: number) => void;
+  defaultLongBreak: number;
+  onDefaultLongBreakChange: (value: number) => void;
+  currentTaskDuration?: number; // Duration in minutes of the selected task
 }
 
 const tabs = [
@@ -52,22 +69,37 @@ export default memo(function SettingsPanel({
   onStayOnTaskFallbackChange,
   alertTaskOptions,
   selectedAlertTaskId,
+  selectedAlertTaskIds,
   onAlertTaskSelect,
+  onAlertTaskIdsSelect,
+  alertsEnabled,
+  onAlertsEnabledChange,
+  alertMode,
+  onAlertModeChange,
   initialTab,
   tabFocusSignal,
   focusAlertSectionSignal,
+  pomodoroDurationMode,
+  onPomodoroDurationModeChange,
+  defaultFocusDuration,
+  onDefaultFocusDurationChange,
+  defaultShortBreak,
+  onDefaultShortBreakChange,
+  defaultLongBreak,
+  onDefaultLongBreakChange,
+  currentTaskDuration,
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState('timer');
   const [isExpanded, setIsExpanded] = useState(false);
-  const [focusDuration, setFocusDuration] = useState(25);
-  const [shortBreak, setShortBreak] = useState(5);
-  const [longBreak, setLongBreak] = useState(15);
+  const [autoStartBreaks, setAutoStartBreaks] = useState(true);
+  const [autoStartPomodoros, setAutoStartPomodoros] = useState(true);
+  const [longBreakInterval, setLongBreakInterval] = useState(4);
+  const [autoCheckTasks, setAutoCheckTasks] = useState(true);
+  const [sendCompletedToBottom, setSendCompletedToBottom] = useState(true);
   const [countdownMinutes, setCountdownMinutes] = useState(25);
-  const [alertsEnabled, setAlertsEnabled] = useState(true);
   const alertTaskLabel =
     alertTaskOptions.find((task) => task.id === selectedAlertTaskId)?.title ||
-    alertTaskOptions[0]?.title ||
-    'Current Task';
+    'No task selected';
   const [alertHighlight, setAlertHighlight] = useState(false);
   const alertSectionRef = useRef<HTMLDivElement | null>(null);
   const alertHighlightTimeoutRef = useRef<number | null>(null);
@@ -93,6 +125,17 @@ export default memo(function SettingsPanel({
     setter((prev) => clampValue(prev + delta, min, max));
   };
 
+  // Check if all required alert settings are complete
+  // Allow closing if no tasks are available (alertTaskOptions.length === 0)
+  // For selective mode, require at least one task selection; for common mode, don't require it
+  const areAlertSettingsComplete = !alertsEnabled || 
+    alertTaskOptions.length === 0 || 
+    (
+      (alertMode === 'common' || selectedAlertTaskIds.length > 0) &&
+      stayOnTaskInterval > 0 &&
+      stayOnTaskModeSelected
+    );
+
   useEffect(() => {
     if (open) {
       setIsExpanded(true);
@@ -110,7 +153,7 @@ export default memo(function SettingsPanel({
 
   useEffect(() => {
     if (!open || !focusAlertSectionSignal) return;
-    setAlertsEnabled(true);
+    onAlertsEnabledChange(true);
 
     alertScrollFrameRef.current = window.requestAnimationFrame(() => {
       alertSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -136,23 +179,30 @@ export default memo(function SettingsPanel({
   const handleStayOnTaskIntervalInput = (event: React.ChangeEvent<HTMLInputElement>) => {
     const parsed = Number(event.target.value);
     if (Number.isNaN(parsed)) return;
-    onStayOnTaskIntervalChange(clampValue(parsed, 1, 60));
+    
+    // Auto-adjust very short intervals to minimum 30 seconds (0.5 minutes)
+    const adjustedValue = parsed < 0.5 ? 0.5 : parsed;
+    
+    onStayOnTaskIntervalChange(clampValue(adjustedValue, 1, 60));
   };
 
   const adjustStayOnTaskInterval = (delta: number) => {
-    onStayOnTaskIntervalChange(clampValue(stayOnTaskInterval + delta, 1, 60));
+    const newValue = clampValue(stayOnTaskInterval + delta, 1, 60);
+    // Auto-adjust if result would be too short
+    const adjustedValue = newValue < 0.5 ? 0.5 : newValue;
+    onStayOnTaskIntervalChange(adjustedValue);
   };
 
   return (
-    <div className={`fixed inset-0 z-[60] ${open ? 'pointer-events-auto' : 'pointer-events-none'} transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}>
+    <div className={`fixed inset-0 z-[60] ${open ? 'pointer-events-auto' : 'pointer-events-none'} transition-opacity duration-100 ${open ? 'opacity-100' : 'opacity-0'}`}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60"
         onClick={onClose}
       />
 
       {/* Panel */}
-      <div className={`absolute inset-x-0 bottom-0 mx-auto flex w-full max-w-3xl flex-col overflow-hidden rounded-t-[32px] border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] backdrop-blur-xl transition-transform duration-200 ease-out ${
+      <div className={`absolute inset-x-0 bottom-0 mx-auto flex w-full max-w-3xl flex-col overflow-hidden rounded-t-[32px] border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 shadow-[0_-25px_60px_rgba(0,0,0,0.65)] transition-transform duration-100 ease-out ${
         open ? 'translate-y-0' : 'translate-y-full'
       } ${isExpanded ? 'h-[90vh]' : 'h-[65vh]'}`}>
         {/* Background layers */}
@@ -176,7 +226,8 @@ export default memo(function SettingsPanel({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-white/20 p-2 text-white/70 transition hover:border-white/50 hover:text-white"
+            disabled={!areAlertSettingsComplete}
+            className={`rounded-full border p-2 transition ${!areAlertSettingsComplete ? 'border-red-400/50 bg-red-400/10 text-red-400 cursor-not-allowed opacity-50' : 'border-white/20 text-white/70 hover:border-white/50 hover:text-white'}`}
             aria-label="Close settings"
           >
             <X className="h-5 w-5" />
@@ -215,332 +266,337 @@ export default memo(function SettingsPanel({
         <div className="relative z-10 flex-1 overflow-y-auto p-6">
           {activeTab === 'timer' && (
             <div className="space-y-6">
-              <h3 className="text-lg font-semibold text-white">Timer Settings</h3>
-              <div className="flex flex-wrap gap-4">
-                <div className="w-[240px]">
-                  <label className="block text-sm font-medium text-white/80 mb-2">
-                    Timer Type
-                  </label>
-                  <div className="relative">
-                    <select
-                      className={`${selectClass} pr-10`}
-                      value={timerType}
-                      onChange={(event) => onTimerTypeChange(event.target.value as TimerMode)}
-                    >
-                      <option value="stopwatch">Stopwatch</option>
-                      <option value="pomodoro">Pomodoro Timer</option>
-                      <option value="countdown">Countdown Timer</option>
-                      <option value="interval">Interval Timer</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
+              {/* SECTION 1: Timer Configuration */}
+              <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-5">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20">
+                    <Watch className="h-4 w-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Timer Configuration</h3>
+                    <p className="text-xs text-white/50">Set up your timer type and durations</p>
                   </div>
                 </div>
-                {timerType === 'pomodoro' && (
-                  <div className="grid w-full max-w-[580px] grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="w-full">
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Focus Duration
-                      </label>
-                      <div className="inline-flex items-center rounded-2xl border border-white/20 bg-black/40 px-2 py-1.5 text-white shadow-inner">
-                        <button
-                          type="button"
-                          className="rounded-full p-1 text-white/70 transition hover:bg-white/10"
-                          onClick={() => adjustValue(setFocusDuration, -5, 5, 120)}
-                          aria-label="Decrease focus duration"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </button>
-                        <input
-                          type="number"
-                          value={focusDuration}
-                          onChange={handleNumberChange(setFocusDuration, 5, 120)}
-                          className="w-16 bg-transparent text-center text-sm font-semibold outline-none"
-                          min={5}
-                          max={120}
-                        />
-                        <span className="text-xs text-white/60">min</span>
-                        <button
-                          type="button"
-                          className="rounded-full p-1 text-white/70 transition hover:bg-white/10"
-                          onClick={() => adjustValue(setFocusDuration, 5, 5, 120)}
-                          aria-label="Increase focus duration"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="w-full">
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Short Break
-                      </label>
-                      <div className="inline-flex items-center rounded-2xl border border-white/20 bg-black/40 px-2 py-1.5 text-white shadow-inner">
-                        <button
-                          type="button"
-                          className="rounded-full p-1 text-white/70 transition hover:bg-white/10"
-                          onClick={() => adjustValue(setShortBreak, -1, 2, 30)}
-                          aria-label="Decrease short break"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </button>
-                        <input
-                          type="number"
-                          value={shortBreak}
-                          onChange={handleNumberChange(setShortBreak, 2, 30)}
-                          className="w-16 bg-transparent text-center text-sm font-semibold outline-none"
-                          min={2}
-                          max={30}
-                        />
-                        <span className="text-xs text-white/60">min</span>
-                        <button
-                          type="button"
-                          className="rounded-full p-1 text-white/70 transition hover:bg-white/10"
-                          onClick={() => adjustValue(setShortBreak, 1, 2, 30)}
-                          aria-label="Increase short break"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="w-full">
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Long Break
-                      </label>
-                      <div className="inline-flex items-center rounded-2xl border border-white/20 bg-black/40 px-2 py-1.5 text-white shadow-inner">
-                        <button
-                          type="button"
-                          className="rounded-full p-1 text-white/70 transition hover:bg-white/10"
-                          onClick={() => adjustValue(setLongBreak, -5, 5, 60)}
-                          aria-label="Decrease long break"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </button>
-                        <input
-                          type="number"
-                          value={longBreak}
-                          onChange={handleNumberChange(setLongBreak, 5, 60)}
-                          className="w-16 bg-transparent text-center text-sm font-semibold outline-none"
-                          min={5}
-                          max={60}
-                        />
-                        <span className="text-xs text-white/60">min</span>
-                        <button
-                          type="button"
-                          className="rounded-full p-1 text-white/70 transition hover:bg-white/10"
-                          onClick={() => adjustValue(setLongBreak, 5, 5, 60)}
-                          aria-label="Increase long break"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                      </div>
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="w-[200px]">
+                    <label className="mb-2 block text-sm font-medium text-white/80">Timer Type</label>
+                    <div className="relative">
+                      <select
+                        className={`${selectClass} pr-10`}
+                        value={timerType}
+                        onChange={(event) => onTimerTypeChange(event.target.value as TimerMode)}
+                      >
+                        <option value="stopwatch">Stopwatch</option>
+                        <option value="pomodoro">Pomodoro Timer</option>
+                        <option value="countdown">Countdown Timer</option>
+                        <option value="interval">Interval Timer</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
                     </div>
                   </div>
-                )}
-                {timerType === 'countdown' && (
-                  <div className="flex flex-wrap gap-4">
-                    <div className="w-[200px]">
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Countdown (minutes)
-                      </label>
-                      <div className="inline-flex items-center rounded-2xl border border-white/20 bg-black/40 px-2 py-1.5 text-white shadow-inner">
+                  {timerType === 'pomodoro' && (
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">Duration Mode</label>
+                      <div className="inline-flex rounded-lg border border-white/20 bg-black/30 p-0.5">
                         <button
                           type="button"
-                          className="rounded-full p-1 text-white/70 transition hover:bg-white/10"
-                          onClick={() => adjustValue(setCountdownMinutes, -5, 1, 180)}
-                          aria-label="Decrease countdown"
+                          onClick={() => onPomodoroDurationModeChange('default')}
+                          className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                            pomodoroDurationMode === 'default'
+                              ? 'bg-blue-500/80 text-white shadow'
+                              : 'text-white/60 hover:text-white/80'
+                          }`}
                         >
-                          <Minus className="h-4 w-4" />
+                          Default
                         </button>
-                        <input
-                          type="number"
-                          value={countdownMinutes}
-                          onChange={handleNumberChange(setCountdownMinutes, 1, 180)}
-                          className="w-16 bg-transparent text-center text-sm font-semibold outline-none"
-                          min={1}
-                          max={180}
-                        />
-                        <span className="text-xs text-white/60">min</span>
                         <button
                           type="button"
-                          className="rounded-full p-1 text-white/70 transition hover:bg-white/10"
-                          onClick={() => adjustValue(setCountdownMinutes, 5, 1, 180)}
-                          aria-label="Increase countdown"
+                          onClick={() => onPomodoroDurationModeChange('customised')}
+                          className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                            pomodoroDurationMode === 'customised'
+                              ? 'bg-purple-500/80 text-white shadow'
+                              : 'text-white/60 hover:text-white/80'
+                          }`}
                         >
-                          <Plus className="h-4 w-4" />
+                          Customised
                         </button>
                       </div>
-                    </div>
-                  </div>
-                )}
-                <div className="w-full max-w-[580px] space-y-3">
-                  <label className="inline-flex items-center gap-3 text-sm text-white/80">
-                    <input
-                      type="checkbox"
-                      checked={alertsEnabled}
-                      onChange={(event) => setAlertsEnabled(event.target.checked)}
-                      className="h-4 w-4 rounded border-white/20 bg-transparent text-blue-500 focus:ring-blue-500"
-                    />
-                    Enable Alert Interval
-                  </label>
-                  {alertsEnabled && (
-                    <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/40">
-                          Alert Settings for:
-                        </p>
-                        <div className="relative w-full sm:w-52">
-                          <select
-                            className={`${selectClass} pr-10 text-sm`}
-                            value={selectedAlertTaskId ?? ''}
-                            onChange={(event) => onAlertTaskSelect(event.target.value)}
-                          >
-                            {alertTaskOptions.length === 0 ? (
-                              <option value="">No tasks available</option>
-                            ) : (
-                              alertTaskOptions.map((task) => (
-                                <option key={task.id} value={task.id}>
-                                  {task.title}
-                                </option>
-                              ))
-                            )}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
-                        </div>
-                      </div>
-                      <p className="text-xs text-white/60">
-                        Viewing settings for: <span className="font-semibold text-white/80">{alertTaskLabel}</span>
-                      </p>
                     </div>
                   )}
                 </div>
-                {alertsEnabled && (
-                  <div
-                    ref={alertSectionRef}
-                    className={`w-full max-w-[580px] space-y-4 rounded-2xl border border-dashed border-white/20 bg-white/5/20 p-4 text-white transition ${
-                      alertHighlight ? 'ring-2 ring-amber-300/70 shadow-[0_0_25px_rgba(251,191,36,0.35)]' : ''
-                    }`}
-                  >
+                {timerType === 'pomodoro' && pomodoroDurationMode === 'default' && (
+                  <div className="mt-4 flex flex-wrap gap-4">
                     <div>
-                      <p className="text-sm font-semibold">Alert interval</p>
-                      <p className="text-xs text-white/60">
-                        Set how often you want a “Where is your focus now?” nudge during the session.
-                      </p>
-                      <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-white/20 bg-black/30 px-4 py-3 text-white shadow-inner">
-                        <label className="text-xs font-semibold uppercase tracking-[0.3em] text-white/40">
-                          Alert frequency
-                        </label>
-                        <div className="relative">
-                          <select
-                            className={`${selectClass} pr-10`}
-                            value={stayOnTaskInterval}
-                            onChange={(event) => onStayOnTaskIntervalChange(Number(event.target.value))}
-                          >
-                            {[5, 10, 15, 30].map((minutes) => (
-                              <option key={minutes} value={minutes}>
-                                {minutes} min
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
-                        </div>
-                        <p className="text-xs text-white/60">Nudge: will remind you to stay focused.</p>
+                      <label className="mb-2 block text-sm font-medium text-white/80">Focus Duration</label>
+                      <div className="inline-flex items-center rounded-2xl border border-white/20 bg-black/40 px-2 py-1.5 text-white shadow-inner">
+                        <button type="button" className="rounded-full p-1 text-white/70 transition hover:bg-white/10" onClick={() => onDefaultFocusDurationChange(Math.max(1, defaultFocusDuration - 5))}><Minus className="h-4 w-4" /></button>
+                        <input type="number" value={defaultFocusDuration} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) onDefaultFocusDurationChange(Math.min(120, Math.max(1, v))); }} className="w-16 bg-transparent text-center text-sm font-semibold outline-none" min={1} max={120} />
+                        <span className="text-xs text-white/60">min</span>
+                        <button type="button" className="rounded-full p-1 text-white/70 transition hover:bg-white/10" onClick={() => onDefaultFocusDurationChange(Math.min(120, defaultFocusDuration + 5))}><Plus className="h-4 w-4" /></button>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-4 rounded-2xl border border-white/15 bg-black/30 p-4">
-                      <div>
-                        <p className="text-sm font-semibold">Reminder style</p>
-                        <p className="text-xs text-white/60">Use the toggles to decide how often nudges appear.</p>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">Short Break</label>
+                      <div className="inline-flex items-center rounded-2xl border border-white/20 bg-black/40 px-2 py-1.5 text-white shadow-inner">
+                        <button type="button" className="rounded-full p-1 text-white/70 transition hover:bg-white/10" onClick={() => onDefaultShortBreakChange(Math.max(1, defaultShortBreak - 1))}><Minus className="h-4 w-4" /></button>
+                        <input type="number" value={defaultShortBreak} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) onDefaultShortBreakChange(Math.min(30, Math.max(1, v))); }} className="w-16 bg-transparent text-center text-sm font-semibold outline-none" min={1} max={30} />
+                        <span className="text-xs text-white/60">min</span>
+                        <button type="button" className="rounded-full p-1 text-white/70 transition hover:bg-white/10" onClick={() => onDefaultShortBreakChange(Math.min(30, defaultShortBreak + 1))}><Plus className="h-4 w-4" /></button>
                       </div>
-                      <div className="flex flex-col gap-3 sm:flex-row">
-                        <div className="flex flex-1 items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                          <div>
-                            <p className="text-sm font-semibold">Repeat reminders</p>
-                            <p className="text-[11px] text-white/60">Keep alerts firing every interval.</p>
-                          </div>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={stayOnTaskModeSelected && stayOnTaskRepeat}
-                            onClick={() => {
-                              if (!stayOnTaskModeSelected || !stayOnTaskRepeat) {
-                                onStayOnTaskModeSelected(true);
-                                onStayOnTaskRepeatChange(true);
-                              } else {
-                                onStayOnTaskModeSelected(false);
-                                onStayOnTaskRepeatChange(false);
-                              }
-                            }}
-                            className={`relative flex h-7 w-12 items-center rounded-full border border-white/15 px-0.5 transition ${
-                              stayOnTaskModeSelected && stayOnTaskRepeat
-                                ? 'bg-gradient-to-r from-emerald-400/70 to-cyan-400/70 shadow-[0_8px_20px_rgba(16,185,129,0.35)]'
-                                : 'bg-white/5'
-                            }`}
-                          >
-                            <span
-                              className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[9px] font-semibold text-slate-800 transition-transform ${
-                                stayOnTaskModeSelected && stayOnTaskRepeat ? 'translate-x-5' : 'translate-x-0'
-                              }`}
-                            >
-                              {stayOnTaskModeSelected && stayOnTaskRepeat ? 'ON' : 'OFF'}
-                            </span>
-                          </button>
-                        </div>
-                        <div className="flex flex-1 items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                          <div>
-                            <p className="text-sm font-semibold">Alert once</p>
-                            <p className="text-[11px] text-white/60">Send only the first reminder.</p>
-                          </div>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={stayOnTaskModeSelected && !stayOnTaskRepeat}
-                            onClick={() => {
-                              if (!stayOnTaskModeSelected || stayOnTaskRepeat) {
-                                onStayOnTaskModeSelected(true);
-                                onStayOnTaskRepeatChange(false);
-                              } else {
-                                onStayOnTaskModeSelected(false);
-                                onStayOnTaskRepeatChange(true);
-                              }
-                            }}
-                            className={`relative flex h-7 w-12 items-center rounded-full border border-white/15 px-0.5 transition ${
-                              stayOnTaskModeSelected && !stayOnTaskRepeat
-                                ? 'bg-gradient-to-r from-sky-400/70 to-blue-400/70 shadow-[0_8px_20px_rgba(59,130,246,0.35)]'
-                                : 'bg-white/5'
-                            }`}
-                          >
-                            <span
-                              className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[9px] font-semibold text-slate-800 transition-transform ${
-                                stayOnTaskModeSelected && !stayOnTaskRepeat ? 'translate-x-5' : 'translate-x-0'
-                              }`}
-                            >
-                              {stayOnTaskModeSelected && !stayOnTaskRepeat ? 'ON' : 'OFF'}
-                            </span>
-                          </button>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">Long Break</label>
+                      <div className="inline-flex items-center rounded-2xl border border-white/20 bg-black/40 px-2 py-1.5 text-white shadow-inner">
+                        <button type="button" className="rounded-full p-1 text-white/70 transition hover:bg-white/10" onClick={() => onDefaultLongBreakChange(Math.max(5, defaultLongBreak - 5))}><Minus className="h-4 w-4" /></button>
+                        <input type="number" value={defaultLongBreak} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) onDefaultLongBreakChange(Math.min(60, Math.max(5, v))); }} className="w-16 bg-transparent text-center text-sm font-semibold outline-none" min={5} max={60} />
+                        <span className="text-xs text-white/60">min</span>
+                        <button type="button" className="rounded-full p-1 text-white/70 transition hover:bg-white/10" onClick={() => onDefaultLongBreakChange(Math.min(60, defaultLongBreak + 5))}><Plus className="h-4 w-4" /></button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {timerType === 'pomodoro' && pomodoroDurationMode === 'customised' && (
+                  <div className="mt-4 rounded-xl border border-purple-400/20 bg-purple-500/5 p-4">
+                    <p className="mb-3 text-xs font-medium text-purple-300">Each task can have its own timer duration:</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                        <div className="h-2 w-2 rounded-full bg-red-400"></div>
+                        <span className="flex-1 text-sm text-white/80">Design homepage mockup</span>
+                        <div className="flex items-center gap-1 rounded border border-white/20 bg-black/30 px-2 py-0.5">
+                          <span className="text-xs font-semibold text-white/90">45</span>
+                          <span className="text-[10px] text-white/50">min</span>
                         </div>
                       </div>
-                      <div className={`${stayOnTaskModeSelected ? '' : 'pointer-events-none opacity-40'}`}>
-                        <p className="text-sm font-semibold">If I don’t respond</p>
-                        <p className="text-xs text-white/60">
-                          {stayOnTaskModeSelected
-                            ? 'Choose the automatic answer recorded when you skip a check-in.'
-                            : 'Select a reminder style first to enable this option.'}
-                        </p>
-                        <div className="mt-3 flex gap-3">
-                          {(['focused', 'deviated'] as StayOnTaskFallback[]).map((option) => (
-                            <button
-                              key={option}
-                              type="button"
-                              onClick={() => onStayOnTaskFallbackChange(option)}
-                              className={`flex-1 rounded-2xl border px-4 py-3 text-left transition ${
-                                stayOnTaskFallback === option
-                                  ? 'border-cyan-200/70 bg-cyan-400/10 text-white shadow-[0_10px_35px_rgba(56,189,248,0.25)]'
-                                  : 'border-white/10 bg-white/5 text-white/70 hover:border-white/30'
-                              }`}
-                            >
-                              <p className="text-sm font-semibold capitalize">{option}</p>
-                              <p className="text-[11px] text-white/60">
-                                {option === 'focused' ? 'Mark the check-in as still on track.' : 'Log it as deviated.'}
-                              </p>
+                      <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                        <div className="h-2 w-2 rounded-full bg-amber-400"></div>
+                        <span className="flex-1 text-sm text-white/80">Review pull requests</span>
+                        <div className="flex items-center gap-1 rounded border border-white/20 bg-black/30 px-2 py-0.5">
+                          <span className="text-xs font-semibold text-white/90">20</span>
+                          <span className="text-[10px] text-white/50">min</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                        <div className="h-2 w-2 rounded-full bg-emerald-400"></div>
+                        <span className="flex-1 text-sm text-white/80">Write documentation</span>
+                        <div className="flex items-center gap-1 rounded border border-white/20 bg-black/30 px-2 py-0.5">
+                          <span className="text-xs font-semibold text-white/90">30</span>
+                          <span className="text-[10px] text-white/50">min</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-[10px] text-white/40">Set timer per task in the Task Board</p>
+                  </div>
+                )}
+                {timerType === 'countdown' && (
+                  <div className="mt-4">
+                    <label className="mb-2 block text-sm font-medium text-white/80">Countdown (minutes)</label>
+                    <div className="inline-flex items-center rounded-2xl border border-white/20 bg-black/40 px-2 py-1.5 text-white shadow-inner">
+                      <button type="button" className="rounded-full p-1 text-white/70 transition hover:bg-white/10" onClick={() => adjustValue(setCountdownMinutes, -5, 1, 180)}><Minus className="h-4 w-4" /></button>
+                      <input type="number" value={countdownMinutes} onChange={handleNumberChange(setCountdownMinutes, 1, 180)} className="w-16 bg-transparent text-center text-sm font-semibold outline-none" min={1} max={180} />
+                      <span className="text-xs text-white/60">min</span>
+                      <button type="button" className="rounded-full p-1 text-white/70 transition hover:bg-white/10" onClick={() => adjustValue(setCountdownMinutes, 5, 1, 180)}><Plus className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* SECTION 2: Pomodoro Automation (only for pomodoro timer) */}
+              {timerType === 'pomodoro' && (
+                <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-5">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20">
+                      <Bell className="h-4 w-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-white">Pomodoro Automation</h3>
+                      <p className="text-xs text-white/50">Configure automatic session transitions and task behavior</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium text-white">Auto start breaks</p>
+                          <p className="text-xs text-white/50">Launch break without manual input</p>
+                        </div>
+                        <button type="button" role="switch" aria-checked={autoStartBreaks} onClick={() => setAutoStartBreaks((prev) => !prev)} className={`relative flex h-6 w-11 items-center rounded-full border border-white/15 px-0.5 transition ${autoStartBreaks ? 'bg-gradient-to-r from-emerald-400/70 to-cyan-400/70' : 'bg-white/5'}`}>
+                          <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-semibold text-slate-800 transition-transform ${autoStartBreaks ? 'translate-x-5' : 'translate-x-0'}`}>{autoStartBreaks ? 'ON' : 'OFF'}</span>
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium text-white">Auto start pomodoros</p>
+                          <p className="text-xs text-white/50">Jump back in when break ends</p>
+                        </div>
+                        <button type="button" role="switch" aria-checked={autoStartPomodoros} onClick={() => setAutoStartPomodoros((prev) => !prev)} className={`relative flex h-6 w-11 items-center rounded-full border border-white/15 px-0.5 transition ${autoStartPomodoros ? 'bg-gradient-to-r from-sky-400/70 to-blue-400/70' : 'bg-white/5'}`}>
+                          <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-semibold text-slate-800 transition-transform ${autoStartPomodoros ? 'translate-x-5' : 'translate-x-0'}`}>{autoStartPomodoros ? 'ON' : 'OFF'}</span>
+                        </button>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                        <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-white/40">Long break interval</label>
+                        <div className="flex items-center gap-3">
+                          <input type="number" min={2} max={8} value={longBreakInterval} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setLongBreakInterval(Math.min(8, Math.max(2, v))); }} className="w-16 rounded-lg border border-white/20 bg-slate-950/70 px-2 py-1.5 text-center text-sm font-semibold text-white/90 focus:border-blue-400 focus:outline-none" />
+                          <span className="text-xs text-white/50">rounds before long break</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium text-white">Auto check tasks</p>
+                          <p className="text-xs text-white/50">Mark complete when focus ends</p>
+                        </div>
+                        <button type="button" role="switch" aria-checked={autoCheckTasks} onClick={() => setAutoCheckTasks((prev) => !prev)} className={`relative flex h-6 w-11 items-center rounded-full border border-white/15 px-0.5 transition ${autoCheckTasks ? 'bg-gradient-to-r from-lime-400/70 to-emerald-400/70' : 'bg-white/5'}`}>
+                          <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-semibold text-slate-800 transition-transform ${autoCheckTasks ? 'translate-x-5' : 'translate-x-0'}`}>{autoCheckTasks ? 'ON' : 'OFF'}</span>
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium text-white">Send completed to bottom</p>
+                          <p className="text-xs text-white/50">Keep fresh work visible</p>
+                        </div>
+                        <button type="button" role="switch" aria-checked={sendCompletedToBottom} onClick={() => setSendCompletedToBottom((prev) => !prev)} className={`relative flex h-6 w-11 items-center rounded-full border border-white/15 px-0.5 transition ${sendCompletedToBottom ? 'bg-gradient-to-r from-amber-300/70 to-orange-400/70' : 'bg-white/5'}`}>
+                          <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-semibold text-slate-800 transition-transform ${sendCompletedToBottom ? 'translate-x-5' : 'translate-x-0'}`}>{sendCompletedToBottom ? 'ON' : 'OFF'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* SECTION 3: Alert Notifications */}
+              <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/20">
+                      <Bell className="h-4 w-4 text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-white">Focus Alerts</h3>
+                      <p className="text-xs text-white/50">Get nudges to stay on track</p>
+                    </div>
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center gap-2">
+                    <input type="checkbox" checked={alertsEnabled ?? false} onChange={(e) => onAlertsEnabledChange(e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-transparent text-blue-500 focus:ring-blue-500" />
+                    <span className="text-sm text-white/70">Enable</span>
+                  </label>
+                </div>
+                {!areAlertSettingsComplete && (
+                  <div className="mb-4 rounded-lg border border-red-400/50 bg-red-400/10 p-3">
+                    <p className="text-sm text-red-400">Please complete all settings</p>
+                  </div>
+                )}
+                {alertsEnabled && (
+                  <div ref={alertSectionRef} className={`space-y-4 rounded-xl border border-dashed border-white/15 bg-black/20 p-4 transition ${alertHighlight ? 'ring-2 ring-amber-300/70' : ''}`}>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-white">Alert Mode</p>
+                        <div className="flex gap-2">
+                          <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-2.5 py-1.5 text-xs transition hover:border-white/30 hover:bg-white/10">
+                            <input
+                              type="radio"
+                              name="alertMode"
+                              value="common"
+                              checked={alertMode === 'common'}
+                              onChange={(e) => onAlertModeChange(e.target.value as 'common' | 'selective')}
+                              className="h-3.5 w-3.5 border-white/20 bg-transparent text-blue-500 focus:ring-blue-500"
+                            />
+                            <span className="font-medium text-white">All Tasks</span>
+                          </label>
+                          <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-2.5 py-1.5 text-xs transition hover:border-white/30 hover:bg-white/10">
+                            <input
+                              type="radio"
+                              name="alertMode"
+                              value="selective"
+                              checked={alertMode === 'selective'}
+                              onChange={(e) => onAlertModeChange(e.target.value as 'common' | 'selective')}
+                              className="h-3.5 w-3.5 border-white/20 bg-transparent text-blue-500 focus:ring-blue-500"
+                            />
+                            <span className="font-medium text-white">Selective</span>
+                          </label>
+                        </div>
+                      </div>
+                      {alertMode === 'selective' && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-white/50">Select tasks to apply alerts:</p>
+                          <div className="max-h-32 space-y-1.5 overflow-y-auto rounded-lg border border-white/10 bg-black/30 p-2">
+                            {alertTaskOptions.length === 0 ? (
+                              <p className="text-xs text-white/40">No tasks available</p>
+                            ) : (
+                              alertTaskOptions.map((task) => (
+                                <label key={task.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs transition hover:bg-white/5">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedAlertTaskIds.includes(task.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        onAlertTaskIdsSelect([...selectedAlertTaskIds, task.id]);
+                                      } else {
+                                        onAlertTaskIdsSelect(selectedAlertTaskIds.filter(id => id !== task.id));
+                                      }
+                                    }}
+                                    className="h-3.5 w-3.5 rounded border-white/20 bg-transparent text-blue-500 focus:ring-blue-500"
+                                  />
+                                  <span className="flex-1 text-white/90">{task.title}</span>
+                                </label>
+                              ))
+                            )}
+                          </div>
+                          {selectedAlertTaskIds.length > 0 && (
+                            <p className="text-xs text-emerald-400">
+                              {selectedAlertTaskIds.length} task{selectedAlertTaskIds.length > 1 ? 's' : ''} selected
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-white/40">Alert frequency</label>
+                          <div className="inline-flex items-center rounded-2xl border border-white/20 bg-black/40 px-2 py-1.5 text-white shadow-inner">
+                            <button type="button" className="rounded-full p-1 text-white/70 transition hover:bg-white/10" onClick={() => onStayOnTaskIntervalChange(Math.max(0, stayOnTaskInterval - 1))}><Minus className="h-4 w-4" /></button>
+                            <input type="number" value={stayOnTaskInterval} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) onStayOnTaskIntervalChange(Math.min(30, Math.max(0, v))); }} className="w-16 bg-transparent text-center text-sm font-semibold outline-none" min={0} max={30} />
+                            <span className="text-xs text-white/60">min</span>
+                            <button type="button" className="rounded-full p-1 text-white/70 transition hover:bg-white/10" onClick={() => onStayOnTaskIntervalChange(Math.min(30, stayOnTaskInterval + 1))}><Plus className="h-4 w-4" /></button>
+                          </div>
+                          {alertsEnabled && stayOnTaskInterval === 0 && (
+                            <p className="mt-1 text-xs text-red-400">
+                              Alert frequency must be greater than 0 minutes
+                            </p>
+                          )}
+                          {currentTaskDuration && stayOnTaskInterval >= currentTaskDuration && (
+                            <p className="mt-1 text-xs text-red-400">
+                              Alert frequency ({stayOnTaskInterval} min) must be less than task duration ({currentTaskDuration} min)
+                            </p>
+                          )}
+                          <p className="mt-1 text-xs text-white/50">How often to remind you</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => { onStayOnTaskModeSelected(true); onStayOnTaskRepeatChange(true); }} className={`flex-1 rounded-lg border px-3 py-2 text-left text-xs transition ${stayOnTaskModeSelected && stayOnTaskRepeat ? 'border-emerald-400/50 bg-emerald-400/10 text-white' : 'border-white/10 bg-white/5 text-white/60 hover:border-white/20'}`}>
+                            <p className="font-semibold">Repeat</p>
+                            <p className="text-white/50">Every interval</p>
+                          </button>
+                          <button type="button" onClick={() => { onStayOnTaskModeSelected(true); onStayOnTaskRepeatChange(false); }} className={`flex-1 rounded-lg border px-3 py-2 text-left text-xs transition ${stayOnTaskModeSelected && !stayOnTaskRepeat ? 'border-sky-400/50 bg-sky-400/10 text-white' : 'border-white/10 bg-white/5 text-white/60 hover:border-white/20'}`}>
+                            <p className="font-semibold">Once</p>
+                            <p className="text-white/50">First reminder only</p>
+                          </button>
+                        </div>
+                        {alertsEnabled && !stayOnTaskModeSelected && (
+                          <p className="text-xs text-red-400">
+                            Please select Repeat or Once
+                          </p>
+                        )}
+                      </div>
+                      <div className={`space-y-3 ${stayOnTaskModeSelected ? '' : 'pointer-events-none opacity-40'}`}>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-white/40">If I don't respond</p>
+                        <p className="text-xs text-white/50">{stayOnTaskModeSelected ? 'Choose automatic answer when you skip check-in' : 'Select a reminder style first'}</p>
+                        <div className="flex gap-2">
+                          {(['focused', 'deviated'] as StayOnTaskFallback[]).map((opt) => (
+                            <button key={opt} type="button" onClick={() => onStayOnTaskFallbackChange(opt)} className={`flex-1 rounded-lg border px-3 py-2 text-left text-xs transition ${stayOnTaskFallback === opt ? 'border-cyan-400/50 bg-cyan-400/10 text-white' : 'border-white/10 bg-white/5 text-white/60 hover:border-white/20'}`}>
+                              <p className="font-semibold capitalize">{opt}</p>
+                              <p className="text-white/50">{opt === 'focused' ? 'Mark as on track' : 'Log as deviated'}</p>
                             </button>
                           ))}
                         </div>
@@ -548,41 +604,11 @@ export default memo(function SettingsPanel({
                     </div>
                   </div>
                 )}
-              </div>
+              </section>
             </div>
           )}
 
-          {activeTab === 'theme' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-semibold text-white">Theme Settings</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
-                    Color Scheme
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    <button className="rounded-lg border border-white/20 bg-slate-800 p-3 text-center text-white hover:border-white/50">
-                      Dark
-                    </button>
-                    <button className="rounded-lg border border-white/20 bg-white/5 p-3 text-center text-white hover:border-white/50">
-                      Light
-                    </button>
-                    <button className="rounded-lg border border-blue-400 bg-blue-400/10 p-3 text-center text-blue-300">
-                      Auto
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
-                    Wallpaper
-                  </label>
-                  <button className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-left text-white hover:border-white/50">
-                    Choose from gallery
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {activeTab === 'theme' && <ThemeSettings />}
 
           {activeTab === 'quotes' && (
             <div className="space-y-6">

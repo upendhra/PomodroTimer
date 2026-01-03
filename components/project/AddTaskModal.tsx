@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -22,6 +22,7 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskAdded }
 
     setLoading(true);
     try {
+      const supabase = createClient();
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         console.error('User not authenticated');
@@ -31,6 +32,7 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskAdded }
       const { error } = await supabase
         .from('tasks')
         .insert({
+          user_id: user.id,
           project_id: projectId,
           title: title.trim(),
           notes: notes.trim() || null,

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 
 interface Theme {
   wallpaper_url?: string;
@@ -10,35 +10,66 @@ interface ThemeWallpaperWrapperProps {
 }
 
 export default function ThemeWallpaperWrapper({ theme, children }: ThemeWallpaperWrapperProps) {
-  const backgroundImage = theme?.wallpaper_url ? `url(${theme.wallpaper_url})` : 'none';
+  const backgroundImage = theme?.wallpaper_url ? `url(${theme.wallpaper_url})` : undefined;
+  const hasWallpaper = Boolean(backgroundImage);
+  const [backgroundSize, setBackgroundSize] = useState<'cover' | 'contain'>('cover');
+
+  useEffect(() => {
+    if (!theme?.wallpaper_url) {
+      setBackgroundSize('cover');
+      return;
+    }
+
+    let cancelled = false;
+    const img = new Image();
+    img.src = theme.wallpaper_url;
+    img.onload = () => {
+      if (cancelled) return;
+      const imageRatio = img.width / img.height;
+      const screenRatio = window.innerWidth / window.innerHeight;
+      if (imageRatio >= 1.2 || imageRatio >= screenRatio * 0.9) {
+        setBackgroundSize('cover');
+      } else {
+        setBackgroundSize('contain');
+      }
+    };
+    img.onerror = () => {
+      if (!cancelled) setBackgroundSize('cover');
+    };
+
+    return () => {
+      cancelled = true;
+    };
+  }, [theme?.wallpaper_url]);
 
   return (
-    <div
-      style={{
-        backgroundImage,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        filter: 'blur(2px)',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        zIndex: -1,
-        transition: 'background-image 0.5s ease-in-out',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.3)', // Overlay
-        }}
-      />
-      <div style={{ position: 'relative', zIndex: 1 }}>
+    <div className="relative min-h-screen">
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div
+          className="absolute inset-0 bg-slate-950 transition-opacity duration-500"
+          style={{ opacity: hasWallpaper ? 0 : 1 }}
+        />
+        {hasWallpaper && (
+          <div
+            className="absolute inset-0 bg-cover bg-center blur-[80px] transition-[opacity,transform,background-image] duration-500"
+            style={{
+              backgroundImage,
+              opacity: 0.7,
+              transform: 'scale(1.05)',
+            }}
+          />
+        )}
+        <div
+          className="absolute inset-0 bg-center bg-no-repeat transition-[opacity,transform,background-image] duration-500"
+          style={{
+            backgroundImage,
+            opacity: hasWallpaper ? 1 : 0,
+            transform: 'scale(1)',
+            backgroundSize,
+          }}
+        />
+      </div>
+      <div className="relative z-10">
         {children}
       </div>
     </div>

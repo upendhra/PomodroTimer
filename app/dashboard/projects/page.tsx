@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import ProjectCard from "@/components/dashboard/ProjectCard";
 import { useProjectCreation } from "@/hooks/useProjectCreation";
 import { Plus } from "lucide-react";
@@ -34,17 +34,33 @@ const showToast = (message: string) => {
 };
 
 const fetchProjects = async () => {
+  console.log('🔍 [PROJECTS LIST] fetchProjects called');
   setLoading(true);
   try {
+    const supabase = createClient();
+    console.log('🔐 [PROJECTS LIST] Calling supabase.auth.getUser()...');
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
 
+    console.log('🔐 [PROJECTS LIST] Auth response:', {
+      hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email,
+      hasError: !!userError,
+      errorMessage: userError?.message,
+    });
+
     if (userError || !user) {
+      console.error('❌ [PROJECTS LIST] Auth failed - redirecting to login');
+      console.error('❌ [PROJECTS LIST] userError:', userError);
+      console.error('❌ [PROJECTS LIST] user:', user);
       window.location.href = "/auth/login";
       return;
     }
+
+    console.log('✅ [PROJECTS LIST] User authenticated, fetching projects...');
 
     const { data, error } = await supabase
       .from("projects")
@@ -72,6 +88,7 @@ useEffect(() => {
 
 const handleDeleteProject = async (projectId: string) => {
   try {
+    const supabase = createClient();
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     if (sessionError || !session) {
       showToast('Authentication required');

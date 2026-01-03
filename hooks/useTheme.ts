@@ -12,7 +12,7 @@ interface ThemeState {
   projectTheme: any;
   customWallpaper: string | null;
   currentTheme: any;
-  setUserSelectedTheme: (id: string) => Promise<void>;
+  setUserSelectedTheme: (themeOrId: string | any) => Promise<void>;
   setProjectTheme: (id: string | null) => Promise<void>;
   setCustomWallpaper: (file: File) => void;
   clearCustomWallpaper: () => void;
@@ -25,8 +25,10 @@ const useThemeStore = create<ThemeState>((set, get) => ({
   customWallpaper: null,
   currentTheme: null,
 
-  setUserSelectedTheme: async (id: string) => {
-    const theme = await getThemeById(id);
+  setUserSelectedTheme: async (themeOrId: string | any) => {
+    const theme =
+      typeof themeOrId === 'string' ? await getThemeById(themeOrId) : themeOrId;
+    if (!theme) return;
     set({ userSelectedTheme: theme });
     get().resolveTheme();
   },

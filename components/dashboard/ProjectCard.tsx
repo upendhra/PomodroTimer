@@ -73,6 +73,7 @@ export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
 
         <Link
           href={`/dashboard/projects/${project.id}`}
+          onClick={() => console.log('🚀 [PROJECT CARD] Navigating to project:', project.id, project.project_name)}
           className="mt-4 inline-flex items-center gap-2 self-start rounded-full bg-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/25"
         >
           Enter Sanctuary

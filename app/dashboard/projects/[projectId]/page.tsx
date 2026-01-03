@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { useParams, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import WelcomeCard from '@/components/project/WelcomeCard';
 import EnterPlayButton from '@/components/project/EnterPlayButton';
 import ProjectStats from '@/components/project/ProjectStats';
@@ -26,19 +26,11 @@ interface Project {
 
 export default function ProjectHomeBoardPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = typeof params.projectId === 'string' ? params.projectId : null;
   const cacheKey = projectId ? `projectHome:${projectId}` : null;
-  const [project, setProject] = useState<Project | null>(() => {
-    if (typeof window === 'undefined' || !cacheKey) return null;
-    try {
-      const cached = window.sessionStorage.getItem(cacheKey);
-      return cached ? (JSON.parse(cached) as Project) : null;
-    } catch (cacheError) {
-      console.warn('Unable to restore project cache', cacheError);
-      return null;
-    }
-  });
-  const [loading, setLoading] = useState(!project);
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isStatsOpen, setStatsOpen] = useState(false);
   const [isMusicDrawerOpen, setMusicDrawerOpen] = useState(false);
@@ -47,28 +39,58 @@ export default function ProjectHomeBoardPage() {
   const [isCalendarOpen, setCalendarOpen] = useState(false);
   const [isNoteOpen, setNoteOpen] = useState(false);
   const [noteContent, setNoteContent] = useState('<p>Write your reflections...</p>');
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
     async function getProject() {
+      console.log('🔍 [PROJECT PAGE] useEffect triggered');
+      console.log('📋 [PROJECT PAGE] params.projectId:', params.projectId);
+      console.log('📋 [PROJECT PAGE] typeof params.projectId:', typeof params.projectId);
+      
       if (!params.projectId || typeof params.projectId !== 'string') {
+        console.error('❌ [PROJECT PAGE] Invalid project ID');
         setError('Invalid project ID');
         setLoading(false);
         return;
       }
 
       console.log('=== GET PROJECT STARTED (CLIENT-SIDE) ===');
-      console.log('Fetching project with ID:', params.projectId);
+      console.log('📂 [PROJECT PAGE] Fetching project with ID:', params.projectId);
 
       try {
+        const supabase = createClient();
         // Get authenticated user
+        console.log('🔐 [PROJECT PAGE] Calling supabase.auth.getUser()...');
         const { data: { user }, error: userError } = await supabase.auth.getUser();
-        console.log('Client-side auth check:', { user: user?.id, userError });
+        
+        console.log('🔐 [PROJECT PAGE] Auth response:', {
+          hasUser: !!user,
+          userId: user?.id,
+          userEmail: user?.email,
+          hasError: !!userError,
+          errorMessage: userError?.message,
+          errorStatus: userError?.status,
+        });
 
         if (userError || !user) {
-          console.log('Client-side auth failed, redirecting to login');
-          window.location.href = '/auth/login';
+          console.error('❌ [PROJECT PAGE] Auth failed - BUT NOT REDIRECTING (temporarily disabled for debugging)');
+          console.error('❌ [PROJECT PAGE] userError:', userError);
+          console.error('❌ [PROJECT PAGE] user:', user);
+          console.log('⚠️ [PROJECT PAGE] Would redirect to /auth/login but skipping for now...');
+          // TEMPORARY: Commenting out redirect to debug
+          // window.location.href = '/auth/login';
+          // return;
+        }
+
+        if (!user) {
+          console.error('❌ [PROJECT PAGE] No user found after auth check');
+          setError('Authentication required');
+          setLoading(false);
           return;
         }
+
+        console.log('✅ [PROJECT PAGE] User authenticated successfully');
+        console.log('📊 [PROJECT PAGE] Fetching project from database...');
 
         // Fetch project
         const { data, error } = await supabase
@@ -78,28 +100,43 @@ export default function ProjectHomeBoardPage() {
           .eq('user_id', user.id)
           .single();
 
-        console.log('Supabase query result:', { data, error });
+        console.log('📊 [PROJECT PAGE] Supabase query result:', {
+          hasData: !!data,
+          hasError: !!error,
+          errorMessage: error?.message,
+          errorCode: error?.code,
+          projectId: data?.id,
+          projectName: data?.project_name,
+        });
 
         if (error || !data) {
-          console.log('Project not found or query failed');
+          console.error('❌ [PROJECT PAGE] Project not found or query failed');
+          console.error('❌ [PROJECT PAGE] error:', error);
           setError('Project not found');
           setLoading(false);
           return;
         }
 
-        console.log('Project fetched successfully:', data);
+        console.log('✅ [PROJECT PAGE] Project fetched successfully:', data.project_name);
         setProject(data);
+        router.replace(`/dashboard/projects/${params.projectId}/play`);
+        setHasRedirected(true);
+        
         if (cacheKey && typeof window !== 'undefined') {
+          console.log('💾 [PROJECT PAGE] Caching project data with key:', cacheKey);
           try {
             window.sessionStorage.setItem(cacheKey, JSON.stringify(data));
+            console.log('✅ [PROJECT PAGE] Project data cached successfully');
           } catch (cacheError) {
-            console.warn('Unable to cache project home data', cacheError);
+            console.warn('⚠️ [PROJECT PAGE] Unable to cache project home data', cacheError);
           }
         }
       } catch (err) {
-        console.error('Error fetching project:', err);
+        console.error('❌ [PROJECT PAGE] Error fetching project:', err);
+        console.error('❌ [PROJECT PAGE] Error stack:', (err as Error).stack);
         setError('Failed to load project');
       } finally {
+        console.log('🏁 [PROJECT PAGE] getProject() completed, setLoading(false)');
         setLoading(false);
       }
     }
@@ -116,6 +153,10 @@ export default function ProjectHomeBoardPage() {
         </div>
       </div>
     );
+  }
+
+  if (hasRedirected) {
+    return null;
   }
 
   if (error || !project) {

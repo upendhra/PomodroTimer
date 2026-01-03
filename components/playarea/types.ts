@@ -25,6 +25,10 @@ export interface BoardTaskCard {
   sortOrder?: number; // Order for drag-and-drop sorting
   focusedAlerts?: number; // Number of "Focused" responses to stay-on-task alerts
   deviatedAlerts?: number; // Number of "Deviated" responses to stay-on-task alerts
+  timerMode?: 'default' | 'customised'; // Timer mode for this task
+  customFocusTime?: number; // Custom focus duration in minutes
+  customShortBreak?: number; // Custom short break duration in minutes
+  customLongBreak?: number; // Custom long break duration in minutes
 }
 
 export interface ProjectStats {
@@ -44,13 +48,14 @@ export interface ProjectStats {
   totalTasksCompleted: number;
   totalSessionsCompleted: number;
   totalHoursWorked: number;
-  lastActiveDate: string;
+  lastActiveDate: string | null;
 }
 
 export interface DailyStats {
   date: string; // YYYY-MM-DD
   tasksCompleted: number;
   sessionsCompleted: number;
+  breakSessions: number;
   hoursWorked: number;
   targetTasks: number;
   targetSessions: number;
@@ -176,16 +181,37 @@ export interface MonthlyReport {
   active_days: number;
 }
 
-export interface YearlyReport {
-  year_start: string;
-  total_tasks_created: number;
-  total_tasks_completed: number;
-  total_focus_sessions: number;
-  total_break_sessions: number;
-  total_planned_hours: number;
-  total_completed_hours: number;
-  avg_daily_streak: number;
-  best_streak: number;
-  active_days: number;
-  completion_rate: number; // percentage
+export interface UserSettings {
+  user_id: string;
+  theme_id?: string;
+  music_id?: string;
+  quote_category?: string;
+  notification_email?: boolean;
+  notification_inapp?: boolean;
+  notification_desktop?: boolean;
+  report_frequency?: string;
+
+  // Timer Settings
+  timer_type?: 'pomodoro' | 'stopwatch' | 'countdown' | 'interval';
+  pomodoro_duration_mode?: 'default' | 'customised';
+  default_focus_duration?: number;
+  default_short_break?: number;
+  default_long_break?: number;
+  countdown_minutes?: number;
+
+  // Pomodoro Automation
+  auto_start_breaks?: boolean;
+  auto_start_pomodoros?: boolean;
+  long_break_interval?: number;
+  auto_check_tasks?: boolean;
+  send_completed_to_bottom?: boolean;
+
+  // Alert Settings
+  alerts_enabled?: boolean;
+  alert_frequency?: number;
+  stay_on_task_repeat?: boolean;
+  stay_on_task_fallback?: 'focused' | 'deviated';
+
+  created_at?: string;
+  updated_at?: string;
 }

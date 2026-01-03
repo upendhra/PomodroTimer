@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,6 +42,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const supabase = createClient();
       const { data, error: loginError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -77,15 +78,34 @@ export default function LoginPage() {
         <div className="absolute -top-24 left-10 w-[26rem] h-[26rem] bg-gradient-to-br from-purple-200/60 to-pink-200/40 rounded-full blur-[180px] animate-aurora-blob-1" />
         <div className="absolute top-1/4 right-0 w-[32rem] h-[32rem] bg-gradient-to-tr from-indigo-200/60 to-cyan-200/40 rounded-full blur-[200px] animate-aurora-blob-2" />
         <div className="absolute bottom-0 left-1/3 w-[30rem] h-[30rem] bg-gradient-to-bl from-cyan-200/60 to-blue-200/40 rounded-full blur-[220px] animate-aurora-blob-3" />
-        {Array.from({ length: 18 }).map((_, i) => (
+        {[
+          { top: 90.39, left: 62.96, delay: 1.12, duration: 8.39 },
+          { top: 70.62, left: 51.83, delay: 3.42, duration: 7.60 },
+          { top: 9.85, left: 99.10, delay: 3.64, duration: 11.66 },
+          { top: 43.10, left: 14.58, delay: 3.76, duration: 10.50 },
+          { top: 31.78, left: 4.64, delay: 3.32, duration: 10.16 },
+          { top: 34.37, left: 80.99, delay: 1.47, duration: 8.11 },
+          { top: 45.87, left: 55.26, delay: 2.74, duration: 8.67 },
+          { top: 45.82, left: 10.99, delay: 3.47, duration: 7.22 },
+          { top: 67.43, left: 86.47, delay: 0.12, duration: 11.84 },
+          { top: 44.43, left: 7.98, delay: 1.45, duration: 9.57 },
+          { top: 55.11, left: 2.24, delay: 1.08, duration: 8.04 },
+          { top: 91.61, left: 42.42, delay: 3.05, duration: 10.80 },
+          { top: 57.57, left: 84.42, delay: 1.01, duration: 11.35 },
+          { top: 42.52, left: 87.87, delay: 0.83, duration: 8.20 },
+          { top: 77.85, left: 71.30, delay: 1.97, duration: 6.57 },
+          { top: 64.00, left: 59.87, delay: 3.80, duration: 8.76 },
+          { top: 94.75, left: 76.02, delay: 1.32, duration: 6.80 },
+          { top: 6.85, left: 15.91, delay: 4.57, duration: 10.42 }
+        ].map((pos, i) => (
           <span
             key={i}
             className="absolute w-1 h-1 bg-white/50 rounded-full animate-float"
             style={{
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${6 + Math.random() * 6}s`
+              top: `${pos.top}%`,
+              left: `${pos.left}%`,
+              animationDelay: `${pos.delay}s`,
+              animationDuration: `${pos.duration}s`
             }}
           />
         ))}

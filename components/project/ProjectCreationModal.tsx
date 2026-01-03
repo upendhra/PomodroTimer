@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Clock, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 
 type DurationType = 'date_range' | 'daily';
 
@@ -58,6 +58,7 @@ export default function ProjectCreationModal({ isOpen, onClose }: ProjectCreatio
 
   const handleCreate = async () => {
     try {
+      const supabase = createClient();
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         console.error('User not authenticated');

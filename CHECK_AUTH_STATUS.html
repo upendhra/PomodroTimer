@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check Authentication Status</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
+        .error { color: #ff0000; }
+        .success { color: #00ff00; }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Authentication Status Checker</h1>
+    
+    <button onclick="checkAuth()">Check Auth Status</button>
+    <button onclick="checkCookies()">Check Cookies</button>
+    <button onclick="testSettingsSave()">Test Settings Save</button>
+    
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+
+        async function checkAuth() {
+            output.innerHTML = '<div class="status">Checking authentication...</div>';
+            
+            try {
+                // Check if Supabase client exists
+                const hasSupabase = typeof window.supabase !== 'undefined';
+                output.innerHTML += `<div class="status">Supabase client exists: ${hasSupabase}</div>`;
+
+                // Try to get session from localStorage
+                const keys = Object.keys(localStorage).filter(k => k.includes('supabase'));
+                output.innerHTML += `<div class="status">Supabase localStorage keys: ${keys.length}</div>`;
+                keys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    output.innerHTML += `<div class="status">Key: ${key}<br>Length: ${value?.length || 0}</div>`;
+                });
+
+                // Check session storage
+                const sessionKeys = Object.keys(sessionStorage).filter(k => k.includes('supabase'));
+                output.innerHTML += `<div class="status">Supabase sessionStorage keys: ${sessionKeys.length}</div>`;
+
+            } catch (error) {
+                output.innerHTML += `<div class="status error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function checkCookies() {
+            output.innerHTML = '<div class="status">Checking cookies...</div>';
+            
+            const cookies = document.cookie.split(';');
+            output.innerHTML += `<div class="status">Total cookies: ${cookies.length}</div>`;
+            
+            const supabaseCookies = cookies.filter(c => c.includes('supabase') || c.includes('sb-'));
+            output.innerHTML += `<div class="status">Supabase cookies: ${supabaseCookies.length}</div>`;
+            
+            supabaseCookies.forEach(cookie => {
+                const [name] = cookie.trim().split('=');
+                output.innerHTML += `<div class="status">Cookie: ${name}</div>`;
+            });
+
+            if (supabaseCookies.length === 0) {
+                output.innerHTML += `<div class="status error">❌ NO SUPABASE COOKIES FOUND - You are NOT logged in!</div>`;
+            } else {
+                output.innerHTML += `<div class="status success">✅ Supabase cookies found - You may be logged in</div>`;
+            }
+        }
+
+        async function testSettingsSave() {
+            output.innerHTML = '<div class="status">Testing settings save...</div>';
+            
+            try {
+                const response = await fetch('/api/settings/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        default_focus_duration: 30,
+                        default_short_break: 5,
+                        default_long_break: 15
+                    })
+                });
+
+                output.innerHTML += `<div class="status">Response status: ${response.status}</div>`;
+                
+                const data = await response.json();
+                output.innerHTML += `<div class="status">Response data: ${JSON.stringify(data, null, 2)}</div>`;
+
+                if (response.status === 401) {
+                    output.innerHTML += `<div class="status error">❌ 401 ERROR - You are NOT logged in!</div>`;
+                    output.innerHTML += `<div class="status error">Message: ${data.message}</div>`;
+                    output.innerHTML += `<div class="status">🔧 FIX: Go to /auth/login and log in first!</div>`;
+                } else if (response.ok) {
+                    output.innerHTML += `<div class="status success">✅ SUCCESS - Settings saved!</div>`;
+                } else {
+                    output.innerHTML += `<div class="status error">❌ ERROR ${response.status}</div>`;
+                }
+
+            } catch (error) {
+                output.innerHTML += `<div class="status error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Auto-run on load
+        window.onload = () => {
+            checkCookies();
+        };
+    </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Pencil, TimerReset, Trash2, CheckCircle, GripVertical, Check, X } from 'lucide-react';
 import { BoardTaskCard, PRIORITY_META, TaskPriority } from './types';
 
@@ -13,6 +13,7 @@ interface TodoTaskCardProps {
   onApplyTimer?: (task: BoardTaskCard) => void;
   onDelete: () => void;
   dragListeners?: any; // From @dnd-kit useSortable listeners
+  showTimerEdit?: boolean; // Hide timer edit when using default duration mode
 }
 
 const PRIORITY_OPTIONS: TaskPriority[] = ['high', 'medium', 'low'];
@@ -23,14 +24,28 @@ export default function TodoTaskCard({
   isCurrent,
   onToggleCollapse,
   onUpdate,
-  onApplyTimer,
   onDelete,
   dragListeners,
+  showTimerEdit = true,
 }: TodoTaskCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editPriority, setEditPriority] = useState<TaskPriority>(task.priority);
   const [editDuration, setEditDuration] = useState(task.duration);
+  
+  // Local state for inline editing (non-edit mode)
+  const [localDuration, setLocalDuration] = useState(task.duration);
+  const [localPriority, setLocalPriority] = useState<TaskPriority>(task.priority);
+  const [localShortBreak, setLocalShortBreak] = useState(task.customShortBreak ?? 5);
+  const [localLongBreak, setLocalLongBreak] = useState(task.customLongBreak ?? 10);
+
+  // Sync local state when task changes externally
+  useEffect(() => {
+    setLocalDuration(task.duration);
+    setLocalPriority(task.priority);
+    setLocalShortBreak(task.customShortBreak ?? 5);
+    setLocalLongBreak(task.customLongBreak ?? 10);
+  }, [task.duration, task.priority, task.customShortBreak, task.customLongBreak]);
 
   const fieldBase = `task-${task.id}`;
 
@@ -44,11 +59,19 @@ export default function TodoTaskCard({
     : 'border-amber-200/70 bg-amber-300/5';
 
   const handleSave = () => {
-    onUpdate({
+    const updates: Partial<Omit<BoardTaskCard, 'id'>> = {
       title: editTitle.trim(),
       priority: editPriority,
       duration: editDuration,
-    });
+    };
+    
+    // Include break durations if task is in customised mode
+    if (task.timerMode === 'customised') {
+      updates.customShortBreak = localShortBreak;
+      updates.customLongBreak = localLongBreak;
+    }
+    
+    onUpdate(updates);
     setIsEditing(false);
   };
 
@@ -79,7 +102,7 @@ export default function TodoTaskCard({
     <div className={`rounded-xl border px-4 py-3 shadow-[0_4px_12px_rgba(2,4,12,0.3)] transition ${rowColorClass} hover:border-opacity-100`}>
       {/* Minimized Row View (Default - when isCollapsed = true) */}
       {isCollapsed && (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" onClick={showTimerEdit ? onToggleCollapse : undefined} style={{ cursor: showTimerEdit ? 'pointer' : 'default' }}>
           {/* Drag Handle */}
           <div className="flex-shrink-0 cursor-grab active:cursor-grabbing" {...dragListeners}>
             <GripVertical className="h-4 w-4 text-white/40" />
@@ -127,9 +150,14 @@ export default function TodoTaskCard({
               <select
                 id={`${fieldBase}-priority`}
                 name={`${fieldBase}-priority`}
-                value={task.priority}
-                onChange={(e) => onUpdate({ priority: e.target.value as TaskPriority })}
-                className="rounded-lg border border-white/10 bg-transparent px-2 py-1 text-xs text-white focus:border-[var(--accent-primary)] focus:outline-none"
+                value={localPriority}
+                onChange={(e) => {
+                  const newPriority = e.target.value as TaskPriority;
+                  setLocalPriority(newPriority);
+                  onUpdate({ priority: newPriority });
+                }}
+                disabled={isCompleted}
+                className="rounded-lg border border-white/10 bg-transparent px-2 py-1 text-xs text-white focus:border-[var(--accent-primary)] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {PRIORITY_OPTIONS.map((option) => (
                   <option key={option} value={option} className="bg-[var(--surface-base)] text-white">
@@ -140,37 +168,60 @@ export default function TodoTaskCard({
             </div>
           )}
 
-          {/* Timer or Edit Input */}
-          {isEditing ? (
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <input
-                type="number"
-                id={`${fieldBase}-duration`}
-                name={`${fieldBase}-duration`}
-                min={5}
-                max={180}
-                step={5}
-                value={editDuration}
-                onChange={(e) => setEditDuration(Number(e.target.value))}
-                className="w-12 rounded border border-white/10 bg-transparent px-1 py-1 text-xs text-white text-center focus:border-[var(--accent-primary)] focus:outline-none"
-              />
-              <span className="text-xs text-white/60">m</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <input
-                type="number"
-                id={`${fieldBase}-duration`}
-                name={`${fieldBase}-duration`}
-                min={5}
-                max={180}
-                step={5}
-                value={task.duration}
-                onChange={(e) => onUpdate({ duration: Number(e.target.value) })}
-                className="w-12 rounded border border-white/10 bg-transparent px-1 py-1 text-xs text-white text-center focus:border-[var(--accent-primary)] focus:outline-none"
-              />
-              <span className="text-xs text-white/60">m</span>
-            </div>
+          {/* Timer or Edit Input - only show when showTimerEdit is true */}
+          {showTimerEdit && (
+            isEditing ? (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <input
+                  type="number"
+                  id={`${fieldBase}-duration`}
+                  name={`${fieldBase}-duration`}
+                  min={1}
+                  max={180}
+                  step={1}
+                  value={editDuration}
+                  onChange={(e) => setEditDuration(Number(e.target.value))}
+                  className="w-12 rounded border border-white/10 bg-transparent px-1 py-1 text-xs text-white text-center focus:border-[var(--accent-primary)] focus:outline-none"
+                />
+                <span className="text-xs text-white/60">m</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <input
+                  type="number"
+                  id={`${fieldBase}-duration`}
+                  name={`${fieldBase}-duration`}
+                  min={1}
+                  max={180}
+                  step={1}
+                  value={localDuration}
+                  onChange={(e) => setLocalDuration(Number(e.target.value))}
+                  onBlur={(e) => {
+                    const newValue = Number(e.target.value);
+                    const isValid = Number.isFinite(newValue) && newValue >= 1 && newValue <= 180;
+                    console.log('⏱️ Timer onBlur (collapsed view):', {
+                      taskId: task.id,
+                      taskTitle: task.title,
+                      currentDuration: task.duration,
+                      inputValue: e.target.value,
+                      newValue,
+                      isValid,
+                      willUpdate: isValid && newValue !== task.duration,
+                    });
+                    if (isValid && newValue !== task.duration) {
+                      console.log('⏱️ Timer updating:', task.id, 'from', task.duration, 'to', newValue);
+                      onUpdate({ duration: newValue });
+                    } else {
+                      console.log('⏱️ Timer not updating:', task.id, '- reverting to', task.duration);
+                      setLocalDuration(task.duration);
+                    }
+                  }}
+                  disabled={isCompleted}
+                  className="w-12 rounded border border-white/10 bg-transparent px-1 py-1 text-xs text-white text-center focus:border-[var(--accent-primary)] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <span className="text-xs text-white/60">m</span>
+              </div>
+            )
           )}
 
           {/* Action Buttons */}
@@ -196,16 +247,6 @@ export default function TodoTaskCard({
               </>
             ) : (
               <>
-                {onApplyTimer && (
-                  <button
-                    type="button"
-                    onClick={() => onApplyTimer(task)}
-                    className="inline-flex items-center gap-1 rounded border border-white/20 px-2 py-1 text-xs text-white/80 transition hover:border-white/40 hover:bg-white/10"
-                  >
-                    <TimerReset className="h-3 w-3" />
-                    Set
-                  </button>
-                )}
                 {!isCompleted ? (
                   <button
                     type="button"
@@ -225,14 +266,16 @@ export default function TodoTaskCard({
                     Undo
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-                  className="inline-flex items-center justify-center rounded border border-white/15 p-1 text-white/70 transition hover:text-white"
-                  aria-label="Edit task"
-                >
-                  <Pencil className="h-3 w-3" />
-                </button>
+                {!isCompleted && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+                    className="inline-flex items-center justify-center rounded border border-white/15 p-1 text-white/70 transition hover:text-white"
+                    aria-label="Edit task"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -301,22 +344,14 @@ export default function TodoTaskCard({
                 </>
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-                    className="inline-flex items-center gap-1 rounded border border-white/15 px-2 py-1 text-xs text-white/70 transition hover:border-white/40"
-                  >
-                    <Pencil className="h-3 w-3" />
-                    Edit
-                  </button>
-                  {onApplyTimer && (
+                  {!isCompleted && (
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); onApplyTimer(task); }}
-                      className="inline-flex items-center gap-1 rounded border border-white/20 px-2 py-1 text-xs text-white/80 transition hover:border-white/40 hover:bg-white/10"
+                      onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+                      className="inline-flex items-center gap-1 rounded border border-white/15 px-2 py-1 text-xs text-white/70 transition hover:border-white/40"
                     >
-                      <TimerReset className="h-3 w-3" />
-                      Set timer
+                      <Pencil className="h-3 w-3" />
+                      Edit
                     </button>
                   )}
                   {!isCompleted ? (
@@ -353,15 +388,20 @@ export default function TodoTaskCard({
 
           {/* Expanded Edit Fields */}
           {!isEditing && (
-            <div className="flex items-center gap-3 ml-7">
+            <div className="flex items-center gap-3 ml-7 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-white/60">Priority:</span>
                 <select
-                  id={`${fieldBase}-priority`}
-                  name={`${fieldBase}-priority`}
-                  value={task.priority}
-                  onChange={(e) => onUpdate({ priority: e.target.value as TaskPriority })}
-                  className="rounded border border-white/10 bg-transparent px-2 py-1 text-xs text-white focus:border-[var(--accent-primary)] focus:outline-none"
+                  id={`${fieldBase}-priority-expanded`}
+                  name={`${fieldBase}-priority-expanded`}
+                  value={localPriority}
+                  onChange={(e) => {
+                    const newPriority = e.target.value as TaskPriority;
+                    setLocalPriority(newPriority);
+                    onUpdate({ priority: newPriority });
+                  }}
+                  disabled={isCompleted}
+                  className="rounded border border-white/10 bg-transparent px-2 py-1 text-xs text-white focus:border-[var(--accent-primary)] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {PRIORITY_OPTIONS.map((option) => (
                     <option key={option} value={option} className="bg-[var(--surface-base)] text-white">
@@ -374,14 +414,85 @@ export default function TodoTaskCard({
                 <span className="text-xs text-white/60">Timer:</span>
                 <input
                   type="number"
-                  id={`${fieldBase}-duration`}
-                  name={`${fieldBase}-duration`}
-                  min={5}
+                  id={`${fieldBase}-duration-expanded`}
+                  name={`${fieldBase}-duration-expanded`}
+                  min={1}
                   max={180}
-                  step={5}
-                  value={task.duration}
-                  onChange={(e) => onUpdate({ duration: Number(e.target.value) })}
-                  className="w-12 rounded border border-white/10 bg-transparent px-1 py-1 text-xs text-white text-center focus:border-[var(--accent-primary)] focus:outline-none"
+                  step={1}
+                  value={localDuration}
+                  onChange={(e) => setLocalDuration(Number(e.target.value))}
+                  onBlur={(e) => {
+                    const newValue = Number(e.target.value);
+                    const isValid = Number.isFinite(newValue) && newValue >= 1 && newValue <= 180;
+                    console.log('⏱️ Timer onBlur (expanded view):', {
+                      taskId: task.id,
+                      taskTitle: task.title,
+                      currentDuration: task.duration,
+                      inputValue: e.target.value,
+                      newValue,
+                      isValid,
+                      willUpdate: isValid && newValue !== task.duration,
+                    });
+                    if (isValid && newValue !== task.duration) {
+                      console.log('⏱️ Timer updating:', task.id, 'from', task.duration, 'to', newValue);
+                      onUpdate({ duration: newValue });
+                    } else {
+                      console.log('⏱️ Timer not updating:', task.id, '- reverting to', task.duration);
+                      setLocalDuration(task.duration);
+                    }
+                  }}
+                  disabled={isCompleted}
+                  className="w-12 rounded border border-white/10 bg-transparent px-1 py-1 text-xs text-white text-center focus:border-[var(--accent-primary)] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <span className="text-xs text-white/60">min</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-white/60">Short Break:</span>
+                <input
+                  type="number"
+                  id={`${fieldBase}-short-break-expanded`}
+                  name={`${fieldBase}-short-break-expanded`}
+                  min={1}
+                  max={30}
+                  step={1}
+                  value={localShortBreak}
+                  onChange={(e) => setLocalShortBreak(Number(e.target.value))}
+                  onBlur={(e) => {
+                    const newValue = Number(e.target.value);
+                    const isValid = Number.isFinite(newValue) && newValue >= 1 && newValue <= 30;
+                    if (isValid && newValue !== task.customShortBreak) {
+                      onUpdate({ customShortBreak: newValue });
+                    } else {
+                      setLocalShortBreak(task.customShortBreak ?? 5);
+                    }
+                  }}
+                  disabled={isCompleted}
+                  className="w-12 rounded border border-white/10 bg-transparent px-1 py-1 text-xs text-white text-center focus:border-[var(--accent-primary)] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <span className="text-xs text-white/60">min</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-white/60">Long Break:</span>
+                <input
+                  type="number"
+                  id={`${fieldBase}-long-break-expanded`}
+                  name={`${fieldBase}-long-break-expanded`}
+                  min={1}
+                  max={60}
+                  step={1}
+                  value={localLongBreak}
+                  onChange={(e) => setLocalLongBreak(Number(e.target.value))}
+                  onBlur={(e) => {
+                    const newValue = Number(e.target.value);
+                    const isValid = Number.isFinite(newValue) && newValue >= 1 && newValue <= 60;
+                    if (isValid && newValue !== task.customLongBreak) {
+                      onUpdate({ customLongBreak: newValue });
+                    } else {
+                      setLocalLongBreak(task.customLongBreak ?? 10);
+                    }
+                  }}
+                  disabled={isCompleted}
+                  className="w-12 rounded border border-white/10 bg-transparent px-1 py-1 text-xs text-white text-center focus:border-[var(--accent-primary)] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <span className="text-xs text-white/60">min</span>
               </div>

@@ -191,6 +191,7 @@ export default function TaskBoardModal({
     date: new Date().toISOString().split('T')[0],
     tasksCompleted: 0,
     sessionsCompleted: 0,
+    breakSessions: 0,
     hoursWorked: 0,
     targetTasks: 5,
     targetSessions: 8,

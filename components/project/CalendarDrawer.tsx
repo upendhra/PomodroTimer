@@ -20,6 +20,7 @@ const buildCalendarDays = (monthBase: dayjs.Dayjs) => {
 export default function CalendarDrawer({ open, onClose }: CalendarDrawerProps) {
   const [monthOffset, setMonthOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState("");
+  const [mounted, setMounted] = useState(false);
 
   const referenceMonth = useMemo(() => dayjs().add(monthOffset, "month"), [monthOffset]);
   const calendarDays = useMemo(() => buildCalendarDays(referenceMonth), [referenceMonth]);
@@ -28,6 +29,7 @@ export default function CalendarDrawer({ open, onClose }: CalendarDrawerProps) {
 
   useEffect(() => {
     setCurrentTime(current.format("h:mm A"));
+    setMounted(true);
   }, []);
 
   const handlePrevMonth = () => setMonthOffset((prev) => prev - 1);
@@ -147,7 +149,7 @@ export default function CalendarDrawer({ open, onClose }: CalendarDrawerProps) {
                     <span className="font-semibold" style={{ fontFamily: "'Manrope', sans-serif" }}>
                       {day.format("ddd, MMM D")}
                     </span>
-                    <span className="text-white/60 text-xs">{day.format("h:mm A")}</span>
+                    <span className="text-white/60 text-xs">{mounted ? day.format("h:mm A") : "--:-- --"}</span>
                   </div>
                   <p className="text-xs text-white/60">Focus Session #{idx + 1}</p>
                 </div>
