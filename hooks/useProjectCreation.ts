@@ -267,8 +267,8 @@ export const useProjectCreation = create<ProjectCreationState>((set, get) => ({
     if (projectId) {
       // Reset form and close modal
       set({ isOpen: false, formData: { ...initialFormData }, currentStep: 1 });
-      // Navigate
-      router.push(`/dashboard/projects/${projectId}`);
+      // Navigate directly to play area
+      router.push(`/dashboard/projects/${projectId}/play`);
     } else {
       // Still close modal on error, but don't navigate
       set({ isOpen: false });

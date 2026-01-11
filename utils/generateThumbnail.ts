@@ -2,7 +2,7 @@ export function generateWallpaperThumbnail(
   imageUrl: string,
   width: number = 256,
   height: number = 256
-): Promise<string> {
+): Promise<string | null> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -57,9 +57,9 @@ export function generateWallpaperThumbnail(
 
     img.onerror = () => {
       clearTimeout(timeout);
-      // Return original URL as fallback instead of rejecting
-      console.warn(`Failed to load image: ${imageUrl}, using original URL as fallback`);
-      resolve(imageUrl); // Use original URL as fallback
+      // Return null instead of broken URL as fallback
+      console.warn(`Failed to load image: ${imageUrl}, returning null`);
+      resolve(null);
     };
 
     img.src = imageUrl;

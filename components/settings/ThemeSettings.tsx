@@ -83,7 +83,9 @@ export default function ThemeSettings() {
       if (theme.type === 'wallpaper' && theme.wallpaper_url) {
         try {
           const thumbnail = await generateWallpaperThumbnail(theme.wallpaper_url, 150, 100);
-          newThumbnails[theme.id] = thumbnail;
+          if (thumbnail) {
+            newThumbnails[theme.id] = thumbnail;
+          }
         } catch (error) {
           console.error(`Failed to generate thumbnail for ${theme.name}:`, error);
         }

@@ -1,14 +1,31 @@
 'use client';
 
-import { useEffect, useRef, useState, memo } from 'react';
-import { Bell, ChevronDown, ChevronUp, Minus, Palette, Plus, Quote, Watch, User, X } from 'lucide-react';
+import { useEffect, useRef, useState, memo, useCallback } from 'react';
+import { Bell, ChevronDown, ChevronUp, Minus, Palette, Plus, Quote, Watch, User, X, Music, Play, Pause } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import ThemeSettings from '@/components/settings/ThemeSettings';
+import { createClient } from '@/lib/supabase/client';
+import { useMusic } from '@/hooks/useMusic';
 
 export type TimerMode = 'pomodoro' | 'stopwatch' | 'countdown' | 'interval';
 export type StayOnTaskFallback = 'focused' | 'deviated';
 export type PomodoroDurationMode = 'default' | 'customised';
-export type SettingsTabId = 'timer' | 'theme' | 'quotes' | 'clock' | 'account';
+export type SettingsTabId = 'timer' | 'theme' | 'quotes' | 'clock' | 'account' | 'music';
 type AlertTaskOption = { id: string; title: string };
+
+interface MusicRow {
+  id: string;
+  name: string;
+  audio_url: string;
+  persona?: string;
+}
+
+interface Track {
+  id: string;
+  name: string;
+  url: string;
+  persona?: string;
+}
 
 interface SettingsPanelProps {
   open: boolean;
@@ -52,6 +69,7 @@ const tabs = [
   { id: 'quotes', label: 'Quotes', icon: Quote },
   { id: 'clock', label: 'Clock', icon: Watch },
   { id: 'account', label: 'Account', icon: User },
+  { id: 'music', label: 'Music', icon: Music },
 ];
 
 export default memo(function SettingsPanel({
@@ -97,6 +115,8 @@ export default memo(function SettingsPanel({
   const [autoCheckTasks, setAutoCheckTasks] = useState(true);
   const [sendCompletedToBottom, setSendCompletedToBottom] = useState(true);
   const [countdownMinutes, setCountdownMinutes] = useState(25);
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'study' | 'calm' | 'happy' | 'positive' | 'ambience'>('all');
   const alertTaskLabel =
     alertTaskOptions.find((task) => task.id === selectedAlertTaskId)?.title ||
     'No task selected';
@@ -106,6 +126,8 @@ export default memo(function SettingsPanel({
   const alertScrollFrameRef = useRef<number | null>(null);
   const selectClass =
     'settings-select w-full rounded-xl border border-white/25 bg-slate-950/70 px-3 py-2 text-sm text-white/90 shadow-[inset_0_1px_8px_rgba(15,23,42,0.65)] transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/40 focus:outline-none appearance-none';
+  const supabase = createClient();
+  const { selectedMusic, isPlaying, setMusic, play, pause } = useMusic();
   const clampValue = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
   const handleNumberChange = (
     setter: (value: number) => void,
@@ -175,6 +197,41 @@ export default memo(function SettingsPanel({
       }
     };
   }, [focusAlertSectionSignal, open]);
+
+  useEffect(() => {
+    const fetchTracks = async () => {
+      const { data, error } = await supabase.from('music').select('id, name, audio_url, persona');
+      if (!error) {
+        setTracks(data.map((row: MusicRow) => ({ id: row.id, name: row.name, url: row.audio_url, persona: row.persona })));
+      }
+    };
+    fetchTracks();
+  }, []);
+
+  const handlePreviewToggle = useCallback(async (track: Track) => {
+    const isThisPlaying = selectedMusic?.id === track.id && isPlaying;
+    if (isThisPlaying) {
+      pause();
+    } else {
+      await setMusic(track.id);
+      play();
+    }
+  }, [selectedMusic, isPlaying, setMusic, play, pause]);
+
+  const categoryFilters: { label: string; value: 'all' | 'study' | 'calm' | 'happy' | 'positive' | 'ambience' }[] = [
+    { label: 'All', value: 'all' },
+    { label: 'Study Mode', value: 'study' },
+    { label: 'Calm', value: 'calm' },
+    { label: 'Happy', value: 'happy' },
+    { label: 'Positive', value: 'positive' },
+    { label: 'Ambience', value: 'ambience' },
+  ];
+
+  const filteredTracks = tracks.filter(t => {
+    if (selectedCategory === 'all') return true;
+    if (!t.persona) return false;
+    return t.persona.toLowerCase() === selectedCategory;
+  });
 
   const handleStayOnTaskIntervalInput = (event: React.ChangeEvent<HTMLInputElement>) => {
     const parsed = Number(event.target.value);
@@ -402,63 +459,54 @@ export default memo(function SettingsPanel({
 
               {/* SECTION 2: Pomodoro Automation (only for pomodoro timer) */}
               {timerType === 'pomodoro' && (
-                <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-5">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20">
-                      <Bell className="h-4 w-4 text-emerald-400" />
+                <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20">
+                      <Bell className="h-3.5 w-3.5 text-emerald-400" />
                     </div>
-                    <div>
-                      <h3 className="text-base font-semibold text-white">Pomodoro Automation</h3>
-                      <p className="text-xs text-white/50">Configure automatic session transitions and task behavior</p>
-                    </div>
+                    <h3 className="text-sm font-semibold text-white">Pomodoro Automation</h3>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                        <div>
-                          <p className="text-sm font-medium text-white">Auto start breaks</p>
-                          <p className="text-xs text-white/50">Launch break without manual input</p>
-                        </div>
-                        <button type="button" role="switch" aria-checked={autoStartBreaks} onClick={() => setAutoStartBreaks((prev) => !prev)} className={`relative flex h-6 w-11 items-center rounded-full border border-white/15 px-0.5 transition ${autoStartBreaks ? 'bg-gradient-to-r from-emerald-400/70 to-cyan-400/70' : 'bg-white/5'}`}>
-                          <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-semibold text-slate-800 transition-transform ${autoStartBreaks ? 'translate-x-5' : 'translate-x-0'}`}>{autoStartBreaks ? 'ON' : 'OFF'}</span>
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                        <div>
-                          <p className="text-sm font-medium text-white">Auto start pomodoros</p>
-                          <p className="text-xs text-white/50">Jump back in when break ends</p>
-                        </div>
-                        <button type="button" role="switch" aria-checked={autoStartPomodoros} onClick={() => setAutoStartPomodoros((prev) => !prev)} className={`relative flex h-6 w-11 items-center rounded-full border border-white/15 px-0.5 transition ${autoStartPomodoros ? 'bg-gradient-to-r from-sky-400/70 to-blue-400/70' : 'bg-white/5'}`}>
-                          <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-semibold text-slate-800 transition-transform ${autoStartPomodoros ? 'translate-x-5' : 'translate-x-0'}`}>{autoStartPomodoros ? 'ON' : 'OFF'}</span>
-                        </button>
-                      </div>
-                      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                        <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-white/40">Long break interval</label>
-                        <div className="flex items-center gap-3">
-                          <input type="number" min={2} max={8} value={longBreakInterval} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setLongBreakInterval(Math.min(8, Math.max(2, v))); }} className="w-16 rounded-lg border border-white/20 bg-slate-950/70 px-2 py-1.5 text-center text-sm font-semibold text-white/90 focus:border-blue-400 focus:outline-none" />
-                          <span className="text-xs text-white/50">rounds before long break</span>
-                        </div>
-                      </div>
+                  <div className="flex flex-wrap gap-2">
+                    <div className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                      <p className="text-sm font-medium text-white whitespace-nowrap">Auto Start Breaks</p>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={autoStartBreaks}
+                        onClick={() => setAutoStartBreaks((prev) => !prev)}
+                        className={`relative flex h-5 w-9 items-center rounded-full border border-white/15 px-0.5 transition ${autoStartBreaks ? 'bg-gradient-to-r from-emerald-400/70 to-cyan-400/70' : 'bg-white/5'}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${autoStartBreaks ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </button>
                     </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                        <div>
-                          <p className="text-sm font-medium text-white">Auto check tasks</p>
-                          <p className="text-xs text-white/50">Mark complete when focus ends</p>
-                        </div>
-                        <button type="button" role="switch" aria-checked={autoCheckTasks} onClick={() => setAutoCheckTasks((prev) => !prev)} className={`relative flex h-6 w-11 items-center rounded-full border border-white/15 px-0.5 transition ${autoCheckTasks ? 'bg-gradient-to-r from-lime-400/70 to-emerald-400/70' : 'bg-white/5'}`}>
-                          <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-semibold text-slate-800 transition-transform ${autoCheckTasks ? 'translate-x-5' : 'translate-x-0'}`}>{autoCheckTasks ? 'ON' : 'OFF'}</span>
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                        <div>
-                          <p className="text-sm font-medium text-white">Send completed to bottom</p>
-                          <p className="text-xs text-white/50">Keep fresh work visible</p>
-                        </div>
-                        <button type="button" role="switch" aria-checked={sendCompletedToBottom} onClick={() => setSendCompletedToBottom((prev) => !prev)} className={`relative flex h-6 w-11 items-center rounded-full border border-white/15 px-0.5 transition ${sendCompletedToBottom ? 'bg-gradient-to-r from-amber-300/70 to-orange-400/70' : 'bg-white/5'}`}>
-                          <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] font-semibold text-slate-800 transition-transform ${sendCompletedToBottom ? 'translate-x-5' : 'translate-x-0'}`}>{sendCompletedToBottom ? 'ON' : 'OFF'}</span>
-                        </button>
+                    <div className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                      <p className="text-sm font-medium text-white whitespace-nowrap">Mark tasks complete</p>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={autoCheckTasks}
+                        onClick={() => setAutoCheckTasks((prev) => !prev)}
+                        className={`relative flex h-5 w-9 items-center rounded-full border border-white/15 px-0.5 transition ${autoCheckTasks ? 'bg-gradient-to-r from-lime-400/70 to-emerald-400/70' : 'bg-white/5'}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${autoCheckTasks ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                    <div className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                      <p className="text-sm font-medium text-white whitespace-nowrap">Long break interval</p>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={2}
+                          max={8}
+                          value={longBreakInterval}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            if (!Number.isNaN(v)) setLongBreakInterval(Math.min(8, Math.max(2, v)));
+                          }}
+                          className="w-12 rounded-lg border border-white/20 bg-slate-950/70 px-2 py-1 text-center text-sm font-semibold text-white/90 focus:border-blue-400 focus:outline-none"
+                        />
+                        <span className="text-xs text-white/50">rounds</span>
                       </div>
                     </div>
                   </div>
@@ -700,6 +748,81 @@ export default memo(function SettingsPanel({
                   Save Changes
                 </button>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'music' && (
+            <div className="space-y-6">
+              <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-5">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/20">
+                    <Music className="h-4 w-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Music Playlist</h3>
+                    <p className="text-xs text-white/50">View your remote music tracks</p>
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <p className="mb-2 text-sm font-medium text-white/80">Filter by Category</p>
+                  <div className="flex flex-wrap gap-2">
+                    {categoryFilters.map((filter) => {
+                      const isActive = selectedCategory === filter.value;
+                      return (
+                        <button
+                          key={filter.value}
+                          type="button"
+                          onClick={() => setSelectedCategory(filter.value)}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                            isActive
+                              ? 'border-purple-400 bg-purple-500/30 text-white shadow'
+                              : 'border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white'
+                          }`}
+                        >
+                          {filter.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <h4 className="mb-3 text-sm font-medium text-white">Playlist</h4>
+                  <div className="max-h-56 overflow-y-auto pr-1">
+                    {filteredTracks.length === 0 ? (
+                      <p className="text-sm text-white/50">No tracks found.</p>
+                    ) : (
+                      <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+                        {filteredTracks.map(track => (
+                          <button
+                            type="button"
+                            key={track.id}
+                            onClick={() => handlePreviewToggle(track)}
+                            className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition ${
+                              selectedMusic?.id === track.id && isPlaying
+                                ? 'border-purple-400/70 bg-purple-500/20'
+                                : 'border-white/10 bg-white/5 hover:border-white/30'
+                            }`}
+                          >
+                            <span className="text-white/70">
+                              {selectedMusic?.id === track.id && isPlaying ? (
+                                <Pause className="h-3.5 w-3.5" />
+                              ) : (
+                                <Play className="h-3.5 w-3.5" />
+                              )}
+                            </span>
+                            <span className="flex-1 truncate font-medium text-white/90 text-left">{track.name}</span>
+                            {track.persona && (
+                              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-widest text-white/60">
+                                {track.persona}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
             </div>
           )}
         </div>

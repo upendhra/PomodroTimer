@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Home,
@@ -14,6 +14,7 @@ import {
   User,
   LogOut,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { label: "Home", href: "/dashboard/home", icon: Home },
@@ -31,7 +32,18 @@ interface SidebarProps {
 
 export default function Sidebar({ expanded, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const isCollapsed = !expanded;
+
+  const handleLogout = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <>
@@ -100,7 +112,11 @@ export default function Sidebar({ expanded, onToggle }: SidebarProps) {
               <button className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white/70 transition hover:bg-white/20">
                 <User className="h-5 w-5" strokeWidth={1.6} />
               </button>
-              <button className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white/70 transition hover:bg-white/20">
+              <button 
+                onClick={handleLogout}
+                aria-label="Logout"
+                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white/70 transition hover:bg-white/20 hover:text-red-400"
+              >
                 <LogOut className="h-5 w-5" strokeWidth={1.6} />
               </button>
             </div>

@@ -7,6 +7,10 @@ const supabase = createClient(
 
 let themesCache: any[] = [];
 
+export function clearThemesCache() {
+  themesCache = [];
+}
+
 export async function loadThemesFromSupabase() {
   if (themesCache.length === 0) {
     const { data, error } = await supabase.from('themes').select('*');
@@ -22,11 +26,22 @@ export async function getThemesForPersona(persona: string) {
 }
 
 export async function getThemeById(id: string) {
-  const themes = await loadThemesFromSupabase();
-  return themes.find((t) => t.id === id);
+  try {
+    const themes = await loadThemesFromSupabase();
+    return themes.find((t) => t.id === id) || null;
+  } catch (error) {
+    console.error('Error loading theme by ID:', error);
+    return null;
+  }
 }
 
 export async function getDefaultThemeForPersona(persona: string) {
-  const themes = await getThemesForPersona(persona);
-  return themes.find((t) => t.is_default) || themes[0];
+  try {
+    const themes = await getThemesForPersona(persona);
+    if (!themes || themes.length === 0) return null;
+    return themes.find((t) => t.is_default) || themes[0] || null;
+  } catch (error) {
+    console.error('Error loading default theme for persona:', error);
+    return null;
+  }
 }

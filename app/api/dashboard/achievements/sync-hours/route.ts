@@ -5,7 +5,10 @@ export async function POST(request: NextRequest) {
   try {
     const { projectId, dateKey, plannedHours, completedHours, pomodoroDurationMode } = await request.json();
 
+    console.log('📥 Received sync request:', { projectId, dateKey, plannedHours, completedHours, pomodoroDurationMode });
+
     if (!projectId || !dateKey) {
+      console.error('❌ Missing required fields');
       return NextResponse.json(
         { error: 'Missing required fields: projectId, dateKey' },
         { status: 400 }
@@ -17,11 +20,14 @@ export async function POST(request: NextRequest) {
     // Get the user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
+      console.error('❌ Authentication failed:', userError?.message || 'No user found');
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized', details: userError?.message || 'No user session found' },
         { status: 401 }
       );
     }
+
+    console.log('✅ User authenticated:', user.id);
 
     console.log('🔄 Syncing hours for project:', projectId, 'date:', dateKey, {
       plannedHours,

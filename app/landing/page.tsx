@@ -7,6 +7,8 @@ import GradientText from "@/components/ui/GradientText";
 import SectionHeader from "@/components/ui/SectionHeader";
 import AuroraBackground from "@/components/ui/AuroraBackground";
 import AuroraWave from "@/components/ui/AuroraWave";
+import { Palette, Target, Zap, TrendingUp, Sparkles, Users } from "lucide-react";
+import PomodoroShowcase from "@/components/landing/PomodoroShowcase";
 
 export default function LandingPage() {
   return (
@@ -15,35 +17,35 @@ export default function LandingPage() {
       <AuroraWave />
 
       {/* Top Navigation */}
-      <header className="absolute top-0 left-0 right-0 z-20 px-8 py-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-[0_10px_30px_rgba(15,23,42,0.08)] px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-400 via-cyan-400 to-pink-300 shadow-lg shadow-purple-200/60" />
+      <header className="absolute top-0 left-0 right-0 z-20 px-4 sm:px-8 py-4 sm:py-6">
+        <div className="max-w-6xl mx-auto flex items-center justify-between rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-[0_10px_30px_rgba(15,23,42,0.08)] px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-br from-purple-400 via-cyan-400 to-pink-300 shadow-lg shadow-purple-200/60" />
             <div>
-              <p className="text-sm font-semibold text-gray-500" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Aurora</p>
-              <p className="text-lg font-semibold text-gray-900">Pomodro</p>
+              <p className="text-xs sm:text-sm font-semibold text-gray-500" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Aurora</p>
+              <p className="text-base sm:text-lg font-semibold text-gray-900">Pomodro</p>
             </div>
           </div>
 
-          <nav className="flex items-center gap-6 text-gray-600 font-medium">
-            <a href="#features" className="hover:text-purple-500 transition-colors">Features</a>
-            <a href="#pricing" className="hover:text-purple-500 transition-colors">Pricing</a>
+          <nav className="flex items-center gap-3 sm:gap-6 text-sm sm:text-base text-gray-600 font-medium">
+            <a href="#features" className="hover:text-purple-500 transition-colors hidden sm:inline">Features</a>
+            <a href="#pricing" className="hover:text-purple-500 transition-colors hidden sm:inline">Pricing</a>
             <a href="/auth/signup" className="hover:text-purple-500 transition-colors">Sign up</a>
           </nav>
         </div>
       </header>
 
       {/* HERO */}
-      <section className="relative z-10 px-8 pt-40 pb-24 text-center max-w-5xl mx-auto">
-        <h1 className="text-6xl md:text-8xl font-bold leading-tight mb-8 tracking-wide">
+      <section className="relative z-10 px-4 sm:px-8 pt-32 sm:pt-40 pb-16 sm:pb-24 text-center max-w-6xl mx-auto">
+        <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold leading-[1.1] mb-6 tracking-tight">
           <GradientText>Focus. Plan. Achieve.</GradientText>
         </h1>
-        <p className="text-2xl text-gray-700 max-w-3xl mx-auto mb-12 leading-relaxed">
+        <p className="text-lg sm:text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto mb-12 leading-relaxed px-4">
           Immerse yourself in a bright Aurora productivity hub with glass cards, glowing gradients,
           and distraction-free planning for creators, students, and professionals.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-6 justify-center">
+        <div className="flex flex-col sm:flex-row gap-6 justify-center mb-16">
           <Link href="/auth/signup" className="w-full sm:w-auto">
             <Button size="lg" variant="primary" className="w-full bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white px-10 py-4 rounded-xl shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-105 transition-all duration-300">
               Get Started
@@ -55,102 +57,176 @@ export default function LandingPage() {
             </Button>
           </Link>
         </div>
+
+        {/* Pomodoro Showcase */}
+        <PomodoroShowcase />
       </section>
 
       {/* FEATURES */}
-      <section id="features" className="relative z-10 py-32 px-8 max-w-7xl mx-auto">
+      <section id="features" className="relative z-10 py-16 sm:py-32 px-4 sm:px-8 max-w-7xl mx-auto">
         <SectionHeader
           title="Features"
           subtitle="A bright and powerful productivity environment"
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 mt-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-12 mt-12 sm:mt-16">
           {[
             {
               title: "Aurora Workspace",
               desc: "Soothing bright gradients and glass surfaces that elevate your focus.",
-              icon: <div className="w-6 h-6 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-full"></div>
+              icon: Palette,
+              gradient: "from-cyan-400 to-purple-500"
             },
             {
               title: "Project Planning",
               desc: "Timeline planning, structured tasks, and progress visibility.",
-              icon: <div className="w-6 h-6 bg-gradient-to-br from-indigo-400 to-cyan-500 rounded-full"></div>
+              icon: Target,
+              gradient: "from-indigo-400 to-cyan-500"
             },
             {
               title: "Deep Focus Mode",
               desc: "Immersive workspace with timer, music, and bright visuals.",
-              icon: <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full"></div>
+              icon: Zap,
+              gradient: "from-purple-400 to-blue-500"
             },
             {
               title: "Streak Tracking",
               desc: "Daily and weekly progress insights to build habits.",
-              icon: <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full"></div>
+              icon: TrendingUp,
+              gradient: "from-blue-400 to-indigo-500"
             },
             {
               title: "Custom Themes",
               desc: "Upload your own ambient themes or pick bright curated ones.",
-              icon: <div className="w-6 h-6 bg-gradient-to-br from-cyan-500 to-violet-500 rounded-full"></div>
+              icon: Sparkles,
+              gradient: "from-cyan-500 to-violet-500"
             },
             {
               title: "Persona-Based Setup",
               desc: "Tailored UI for students, writers, employees, and more.",
-              icon: <div className="w-6 h-6 bg-gradient-to-br from-violet-400 to-purple-500 rounded-full"></div>
+              icon: Users,
+              gradient: "from-violet-400 to-purple-500"
             },
-          ].map((f, i) => (
-            <Card key={i} icon={f.icon} className="group">
-              <h3 className="text-2xl font-semibold mb-4 text-gray-900 group-hover:text-purple-600 transition-colors">{f.title}</h3>
-              <p className="text-gray-600 text-lg group-hover:text-gray-800 transition-colors">{f.desc}</p>
-            </Card>
-          ))}
+          ].map((f, i) => {
+            const IconComponent = f.icon;
+            return (
+              <Card key={i} className="group relative overflow-hidden">
+                <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${f.gradient} text-white mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                  <IconComponent className="w-8 h-8" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-2xl font-semibold mb-4 text-gray-900 group-hover:text-purple-600 transition-colors">{f.title}</h3>
+                <p className="text-gray-600 text-lg group-hover:text-gray-800 transition-colors">{f.desc}</p>
+                
+                {/* Hover glow effect */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${f.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-2xl`}></div>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* SOCIAL PROOF */}
+      <section className="relative z-10 py-16 sm:py-24 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="relative rounded-3xl overflow-hidden border border-white/20 bg-white/30 backdrop-blur-xl p-8 sm:p-12 md:p-16">
+            {/* Background glow */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 via-cyan-400/20 to-indigo-400/20 blur-3xl"></div>
+            
+            <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12 text-center">
+              <div className="space-y-3">
+                <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-purple-600 to-cyan-600 bg-clip-text text-transparent">
+                  10,000+
+                </div>
+                <p className="text-gray-700 text-lg font-medium">Active Users</p>
+                <p className="text-gray-600 text-sm">Building focus habits daily</p>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">
+                  500K+
+                </div>
+                <p className="text-gray-700 text-lg font-medium">Focus Sessions</p>
+                <p className="text-gray-600 text-sm">Completed this month</p>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  4.8★
+                </div>
+                <p className="text-gray-700 text-lg font-medium">User Rating</p>
+                <p className="text-gray-600 text-sm">From 2,500+ reviews</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="relative z-10 py-32 px-8 bg-gradient-to-r from-purple-50/50 via-cyan-50/50 to-indigo-50/50 backdrop-blur-sm">
+      <section className="relative z-10 py-16 sm:py-32 px-4 sm:px-8 bg-gradient-to-r from-purple-50/50 via-cyan-50/50 to-indigo-50/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto">
           <SectionHeader title="How It Works" subtitle="Start in just three steps" />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-16 mt-20">
-            {[
-              ["Create Project", "Set up your project workspace instantly."],
-              ["Start Timer", "Enter clean, calm focus mode with Aurora glow."],
-              ["Achieve Goals", "Track progress with streaks and insights."],
-            ].map(([title, desc], i) => (
-              <Card
-                key={i}
-                glowDirection="center"
-                className="group relative"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 via-cyan-400/20 to-indigo-400/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <div className="relative z-10">
-                  <div className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 mb-6 opacity-80">
-                    {i + 1}
+          <div className="relative mt-12 sm:mt-20">
+            {/* Connection line - hidden on mobile, visible on desktop */}
+            <div className="hidden md:block absolute top-24 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-400 via-cyan-400 to-indigo-400 opacity-30"></div>
+            
+            {/* Arrow indicators */}
+            <div className="hidden md:flex absolute top-24 left-0 right-0 justify-between px-[20%]">
+              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500"></div>
+              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-cyan-500 to-indigo-500"></div>
+              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-16 relative z-10">
+              {[
+                ["Create Project", "Set up your project workspace instantly."],
+                ["Start Timer", "Enter clean, calm focus mode with Aurora glow."],
+                ["Achieve Goals", "Track progress with streaks and insights."],
+              ].map(([title, desc], i) => (
+                <Card
+                  key={i}
+                  glowDirection="center"
+                  className="group relative"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 via-cyan-400/20 to-indigo-400/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="relative z-10">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-cyan-500 text-white text-3xl font-bold mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                      {i + 1}
+                    </div>
+                    <h3 className="text-3xl font-semibold mb-4 text-gray-900 group-hover:text-purple-600 transition-colors">{title}</h3>
+                    <p className="text-gray-600 text-lg">{desc}</p>
                   </div>
-                  <h3 className="text-3xl font-semibold mb-4 text-gray-900">{title}</h3>
-                  <p className="text-gray-600 text-lg">{desc}</p>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* PRICING */}
-      <section id="pricing" className="relative z-10 py-32 px-8">
+      <section id="pricing" className="relative z-10 py-16 sm:py-32 px-4 sm:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <SectionHeader title="Pricing" subtitle="Free during beta" />
 
-          <div className="relative mt-16">
+          <div className="relative mt-12 sm:mt-16">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-400/30 via-cyan-400/30 to-indigo-400/30 rounded-3xl blur-3xl"></div>
 
-            <Card className="relative p-16 max-w-2xl mx-auto" icon={<span className="text-3xl">⭐</span>}>
-              <h3 className="text-5xl font-semibold mb-6 bg-gradient-to-r from-purple-600 to-cyan-600 bg-clip-text text-transparent">Free Access</h3>
-              <p className="text-gray-600 text-xl mb-10 leading-relaxed">
+            <Card className="relative p-8 sm:p-12 md:p-16 max-w-2xl mx-auto" icon={<span className="text-2xl sm:text-3xl">⭐</span>}>
+              <h3 className="text-3xl sm:text-4xl md:text-5xl font-semibold mb-6 bg-gradient-to-r from-purple-600 to-cyan-600 bg-clip-text text-transparent">Free Access</h3>
+              <p className="text-gray-600 text-lg sm:text-xl mb-8 sm:mb-10 leading-relaxed">
                 Full access to all features during beta. No credit card required.
               </p>
-              <Button size="lg" className="bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white px-12 py-5 rounded-xl shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-105 transition-all duration-300 text-xl">
-                Start Now
-              </Button>
+              <Link href="/auth/signup">
+                <button className="group relative overflow-hidden bg-gradient-to-r from-purple-500 to-cyan-500 text-white px-8 sm:px-12 py-4 sm:py-5 rounded-xl shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300 text-lg sm:text-xl font-semibold w-full sm:w-auto">
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    Start Now
+                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </span>
+                  <span className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                </button>
+              </Link>
             </Card>
           </div>
         </div>

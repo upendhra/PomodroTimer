@@ -63,6 +63,9 @@ export interface DailyStats {
   achieved: boolean; // Did they meet their daily goals?
   focusedAlerts?: number; // Number of times user answered "Focused" to alerts
   deviatedAlerts?: number; // Number of times user answered "Deviated" to alerts
+  breakTime?: number; // Total break time in minutes (only successful completions)
+  deviationTime?: number; // Total deviation time in minutes
+  focusTime?: number; // Total focus time in minutes (alert frequency when Focused selected)
 }
 
 export interface SessionRecord {

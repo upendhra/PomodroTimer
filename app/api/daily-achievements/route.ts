@@ -84,6 +84,11 @@ export async function POST(request: NextRequest) {
       completedHours,
       totalSessionTime,
       breakSessions,
+      focused_alerts,
+      deviated_alerts,
+      break_time,
+      deviation_time,
+      focus_time,
       sessions // Array of session records for recent_sessions table
     } = body;
 
@@ -105,6 +110,11 @@ export async function POST(request: NextRequest) {
       completed_hours: completedHours || 0,
       total_session_time: totalSessionTime || 0,
       break_sessions: breakSessions || 0,
+      focused_alerts: focused_alerts || 0,
+      deviated_alerts: deviated_alerts || 0,
+      break_time: break_time || 0,
+      deviation_time: deviation_time || 0,
+      focus_time: focus_time || 0,
       updated_at: new Date().toISOString()
     };
 
@@ -220,7 +230,10 @@ export async function PATCH(request: NextRequest) {
       totalSessionTime,
       breakSessions,
       focused_alerts,
-      deviated_alerts
+      deviated_alerts,
+      break_time,
+      deviation_time,
+      focus_time
     } = body;
 
     // Validate required fields
@@ -258,6 +271,9 @@ export async function PATCH(request: NextRequest) {
         break_sessions: (existingRecord?.break_sessions || 0) + (breakSessions || 0),
         focused_alerts: (existingRecord?.focused_alerts || 0) + (focused_alerts || 0),
         deviated_alerts: (existingRecord?.deviated_alerts || 0) + (deviated_alerts || 0),
+        break_time: (existingRecord?.break_time || 0) + (break_time || 0),
+        deviation_time: (existingRecord?.deviation_time || 0) + (deviation_time || 0),
+        focus_time: (existingRecord?.focus_time || 0) + (focus_time || 0),
         updated_at: new Date().toISOString()
       };
 
@@ -291,6 +307,9 @@ export async function PATCH(request: NextRequest) {
         break_sessions: breakSessions || 0,
         focused_alerts: focused_alerts || 0,
         deviated_alerts: deviated_alerts || 0,
+        break_time: break_time || 0,
+        deviation_time: deviation_time || 0,
+        focus_time: focus_time || 0,
         updated_at: new Date().toISOString()
       };
 
@@ -425,6 +444,11 @@ export async function GET(request: NextRequest) {
           completed_hours: 0,
           total_session_time: 0,
           break_sessions: 0,
+          focused_alerts: 0,
+          deviated_alerts: 0,
+          break_time: 0,
+          deviation_time: 0,
+          focus_time: 0,
           user_id: userId || null
         };
         return NextResponse.json({ success: true, data: [defaultData] });

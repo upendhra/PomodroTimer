@@ -29,13 +29,13 @@ import ModeTabs from '@/components/playarea/ModeTabs';
 import TimerControls from '@/components/playarea/TimerControls';
 import TodoTaskBoardModal from '@/components/playarea/TodoTaskBoardModal';
 import { BoardTaskCard, BoardTaskStatus, PRIORITY_META, ProjectStats, DailyStats, SessionRecord } from '@/components/playarea/types';
-import MusicDrawer from '@/components/project/MusicDrawer';
+import MediaPlayer from '@/components/project/MediaPlayer';
 import ThemeDrawer, { ThemePreset } from '@/components/theme/ThemeDrawer';
-import ProjectViewSwitch from '@/components/project/ProjectViewSwitch';
 import CalendarDrawer from '@/components/project/CalendarDrawer';
 import QuickNoteModal from '@/components/project/QuickNoteModal';
 import FocusAlertModal from '@/components/playarea/AlertModal';
 import { StatsModal } from '@/components/playarea/stats/StatsModal';
+import { useLocalStats } from '@/hooks/useLocalStats';
 
 interface Project {
   id: string;
@@ -56,6 +56,13 @@ const MODE_CONFIG = {
   focus: 25 * 60,
   short: 5 * 60,
   long: 15 * 60,
+};
+
+const DEFAULT_THEME_COLORS = {
+  surface: 'rgba(2,4,12,0.95)',
+  panel: 'rgba(8,11,22,0.9)',
+  border: 'rgba(255,255,255,0.08)',
+  chip: 'rgba(255,255,255,0.08)',
 };
 
 const MIN_TIMER_SECONDS = 30;
@@ -180,15 +187,19 @@ const calculateStreakFromHistory = async (
     return { currentStreak: 0, longestStreak: 0 };
   }
 
-  // 2. Sort by date ascending (oldest first)
-  const sorted = allDays.data.sort((a: any, b: any) =>
+  // 2. Filter out records with 0 focus_sessions (days without activity)
+  const activeDays = allDays.data.filter((record: any) => record.focus_sessions > 0);
+  
+  // 3. Sort by date ascending (oldest first)
+  const sorted = activeDays.sort((a: any, b: any) =>
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
+  console.log('🔍 DEBUG: Total records (all):', allDays.data.length);
+  console.log('🔍 DEBUG: Active days (focus_sessions > 0):', sorted.length);
   console.log('🔍 DEBUG: Sorted data (first 10):', sorted.slice(0, 10));
-  console.log('🔍 DEBUG: Total records:', sorted.length);
   
-  // Log all dates and activity
+  // Log all dates with activity
   console.log('🔍 DEBUG: All dates with activity:');
   sorted.forEach(record => {
     console.log(`  ${record.date}: ${record.focus_sessions} sessions`);
@@ -245,33 +256,13 @@ const calculateStreakFromHistory = async (
   }
   // If today has no activity, currentStreak remains 0
 
-  // 4. Calculate LONGEST streak (max streak ever, including current streak)
-  let longestStreak = 0;
-  let tempStreak = 0;
+  // 4. Calculate LONGEST streak (total count of all active days, gaps allowed)
+  // NEW LOGIC: Longest streak = total number of days with activity (skipped days don't break streak)
+  const longestStreak = sorted.length; // All active days count toward streak
   
-  // Check all consecutive sequences in history
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = new Date(sorted[i-1].date);
-    const curr = new Date(sorted[i].date);
-    
-    const diffDays = Math.floor(
-      (curr.getTime() - prev.getTime()) / (24 * 60 * 60 * 1000)
-    );
-    
-    if (diffDays === 1 && sorted[i-1].focus_sessions > 0 && sorted[i].focus_sessions > 0) {
-      tempStreak++;
-    } else {
-      // End of streak
-      longestStreak = Math.max(longestStreak, tempStreak);
-      tempStreak = (sorted[i].focus_sessions > 0) ? 1 : 0;
-    }
-  }
-  
-  // Don't forget the last streak
-  longestStreak = Math.max(longestStreak, tempStreak);
-  
-  // Include current streak in longest streak calculation
-  longestStreak = Math.max(longestStreak, currentStreak);
+  console.log('🔍 DEBUG: Longest streak calculation (gaps allowed):');
+  console.log(`  Total active days: ${sorted.length}`);
+  console.log(`  Longest streak: ${longestStreak} (includes all days with at least 1 session)`);
 
   const result = {
     currentStreak,
@@ -299,6 +290,9 @@ export default function ProjectPlayAreaPage() {
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [themeWallpaper, setThemeWallpaper] = useState<string | null>(null);
   const [currentBoardTask, setCurrentBoardTask] = useState<BoardTaskCard | null>(null);
+  
+  // Track last active date for day-end detection
+  const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
 
   // Frequency change confirmation dialog state
   const [frequencyConfirmDialogOpen, setFrequencyConfirmDialogOpen] = useState(false);
@@ -327,6 +321,19 @@ export default function ProjectPlayAreaPage() {
   const prevModeRef = useRef<'focus' | 'short' | 'long'>('focus');
   const sessionRecordsRef = useRef<SessionRecord[]>([]);
 
+  const fetchBoardTasks = async () => {
+    try {
+      const response = await fetch(`/api/tasks?projectId=${projectId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const allTasks = data.tasks || [];
+        setBoardTasks(allTasks);
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    }
+  };
+
   const debouncedFetchBoardTasks = useCallback(() => {
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -334,7 +341,15 @@ export default function ProjectPlayAreaPage() {
     debounceTimeoutRef.current = setTimeout(() => {
       fetchBoardTasks();
     }, 500);
-  }, []);
+  }, [projectId]);
+
+  // Load tasks on mount and when projectId changes
+  useEffect(() => {
+    if (projectId) {
+      fetchBoardTasks();
+    }
+  }, [projectId]);
+
   useEffect(() => {
     async function getProject() {
       if (!projectId || typeof projectId !== 'string') return;
@@ -403,6 +418,68 @@ export default function ProjectPlayAreaPage() {
     loadRealStreaks();
   }, [projectId]);
 
+  // Disable focus alerts on login/mount
+  useEffect(() => {
+    console.log('🔔 User logged in - disabling focus alerts');
+    
+    // Check if focus alerts were previously enabled
+    if (typeof window !== 'undefined' && projectId) {
+      const savedAlertsEnabled = window.localStorage.getItem(`alertsEnabled_${projectId}`);
+      const wasEnabled = savedAlertsEnabled === 'true';
+      
+      // Load last active date from localStorage
+      const savedDate = window.localStorage.getItem(`lastActiveDate_${projectId}`);
+      setLastActiveDate(savedDate);
+      
+      // Disable focus alerts
+      setAlertsEnabled(false);
+      
+      // Show toast notification if alerts were previously enabled
+      if (wasEnabled) {
+        setTimeout(() => {
+          setToastMessage('Your Focus Alerts have been unchecked. Please enable and configure them to utilize this feature!');
+          setToastVisible(true);
+          setTimeout(() => {
+            setToastVisible(false);
+          }, 5000);
+        }, 1000); // Delay to ensure component is fully mounted
+      }
+    }
+  }, [projectId]);
+
+  // Check for day end and disable focus alerts at midnight
+  useEffect(() => {
+    const checkDayEnd = () => {
+      const today = getTodayKey();
+      
+      if (lastActiveDate && lastActiveDate !== today) {
+        console.log('🌙 Day ended - disabling focus alerts');
+        setAlertsEnabled(false);
+        
+        // Show alert notification
+        setToastMessage('Focus alerts have been disabled. Please enable and configure them fresh for today!');
+        setToastVisible(true);
+        setTimeout(() => {
+          setToastVisible(false);
+        }, 5000);
+      }
+      
+      // Update last active date
+      setLastActiveDate(today);
+      if (typeof window !== 'undefined' && projectId) {
+        window.localStorage.setItem(`lastActiveDate_${projectId}`, today);
+      }
+    };
+
+    // Check immediately
+    checkDayEnd();
+
+    // Check every minute for day change
+    const interval = setInterval(checkDayEnd, 60000);
+
+    return () => clearInterval(interval);
+  }, [lastActiveDate, projectId]);
+
   useEffect(() => {
     // Only increment when COMING BACK FROM break, not when entering break
     if (prevModeRef.current === 'short' || prevModeRef.current === 'long') {
@@ -446,28 +523,39 @@ export default function ProjectPlayAreaPage() {
     date: getTodayKey(),
     count: 0,
   }));
-  const [themeColors, setThemeColors] = useState({
-    surface: 'rgba(2,4,12,0.95)',
-    panel: 'rgba(8,11,22,0.9)',
-    border: 'rgba(255,255,255,0.08)',
-    chip: 'rgba(255,255,255,0.08)',
-  });
+  const [customThemeColors, setCustomThemeColors] = useState<null | typeof DEFAULT_THEME_COLORS>(null);
+  const themeColors = customThemeColors ?? DEFAULT_THEME_COLORS;
 
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
-  const layoutStyle = useMemo(() => ({
-    backgroundColor: theme?.wallpaper_url ? 'transparent' : themeColors.surface,
-  }), [themeColors.surface, theme?.wallpaper_url]);
+  const activeWallpaper = themeWallpaper ?? theme?.wallpaper_url ?? null;
+  const hasActiveWallpaper = Boolean(activeWallpaper);
+
+  useEffect(() => {
+    if (theme?.wallpaper_url && themeWallpaper !== theme.wallpaper_url) {
+      setThemeWallpaper(theme.wallpaper_url);
+    }
+  }, [theme?.wallpaper_url, themeWallpaper]);
+
+  const layoutStyle = useMemo(() => {
+    const style = {
+      backgroundColor: hasActiveWallpaper ? 'transparent' : themeColors.surface,
+      backgroundImage: hasActiveWallpaper ? `url(${activeWallpaper})` : undefined,
+      backgroundSize: hasActiveWallpaper ? 'cover' : undefined,
+      backgroundPosition: hasActiveWallpaper ? 'center' : undefined,
+    };
+    return style;
+  }, [hasActiveWallpaper, themeColors.surface, activeWallpaper, themeWallpaper, theme?.wallpaper_url]);
 
   const panelStyle = useMemo(() => ({
-    backgroundColor: theme?.wallpaper_url ? 'transparent' : themeColors.panel,
+    backgroundColor: hasActiveWallpaper ? 'transparent' : themeColors.panel,
     borderColor: themeColors.border,
-  }), [themeColors.panel, themeColors.border, theme?.wallpaper_url]);
+  }), [hasActiveWallpaper, themeColors.panel, themeColors.border]);
 
   const timerStyle = useMemo(() => ({
-    backgroundColor: theme?.wallpaper_url ? 'rgba(0,0,0,0.3)' : themeColors.panel,
+    backgroundColor: hasActiveWallpaper ? 'rgba(0,0,0,0.3)' : themeColors.panel,
     borderColor: themeColors.border,
-  }), [themeColors.panel, themeColors.border, theme?.wallpaper_url]);
+  }), [hasActiveWallpaper, themeColors.panel, themeColors.border]);
 
   const chipStyle = useMemo(() => ({
     backgroundColor: themeColors.chip,
@@ -479,6 +567,14 @@ export default function ProjectPlayAreaPage() {
   const [initialOffset, setInitialOffset] = useState({ x: 0, y: 0 });
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    console.log('🖱️ Mouse Down Event:', {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      targetTagName: (e.target as HTMLElement)?.tagName,
+      hasActiveWallpaper,
+      themeWallpaper,
+      themeWallpaperUrl: theme?.wallpaper_url
+    });
     setIsDragging(true);
     setInitialMouse({ x: e.clientX, y: e.clientY });
     setInitialOffset(dragOffset);
@@ -489,11 +585,17 @@ export default function ProjectPlayAreaPage() {
     if (isDragging) {
       const deltaX = e.clientX - initialMouse.x;
       const deltaY = e.clientY - initialMouse.y;
+      console.log('🖱️ Mouse Move (Dragging):', {
+        deltaX,
+        deltaY,
+        newOffset: { x: initialOffset.x + deltaX, y: initialOffset.y + deltaY }
+      });
       setDragOffset({ x: initialOffset.x + deltaX, y: initialOffset.y + deltaY });
     }
   };
 
   const handleMouseUp = () => {
+    console.log('🖱️ Mouse Up Event - Drag ended');
     setIsDragging(false);
   };
 
@@ -606,6 +708,31 @@ export default function ProjectPlayAreaPage() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
 
+  // Save alertsEnabled state to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && projectId) {
+      window.localStorage.setItem(`alertsEnabled_${projectId}`, String(alertsEnabled));
+    }
+  }, [alertsEnabled, projectId]);
+
+  // Alert user when closing the app about focus alerts being disabled
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (alertsEnabled) {
+        const message = 'Your focus alert settings will be disabled. Please remember to enable them on your next login for a fresh start!';
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [alertsEnabled]);
+
   // Handle frequency change confirmation dialog responses
   const handleFrequencyConfirm = useCallback((applyImmediately: boolean) => {
     if (!pendingFrequencyChange) return;
@@ -706,29 +833,83 @@ export default function ProjectPlayAreaPage() {
     return taskDuration;
   }, [selectedAlertTaskId, boardTasks, pomodoroDurationMode, defaultFocusDuration]);
 
-  // Stats tracking state - LOAD FROM DB ON INIT
-  const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
-    // Start with defaults, will be updated from DB
-    return {
-      projectId: projectId || '',
-      dailyGoals: {
+// Calculate realistic daily goals based on historical performance
+const calculateDailyGoals = async (projectId: string) => {
+  try {
+    console.log('🎯 Calculating daily goals based on historical data...');
+    
+    // Fetch last 30 days of daily achievements
+    const response = await fetch(`/api/daily-achievements?projectId=${projectId}&days=30`);
+    const data = await response.json();
+    
+    if (!data.success || !data.data || data.data.length === 0) {
+      console.log('📊 No historical data found, using default goals');
+      return {
         tasksPerDay: 3,
         sessionsPerDay: 8,
         hoursPerDay: 4,
-      },
-      weeklyGoals: {
-        tasksPerWeek: 15,
-        sessionsPerWeek: 40,
-        hoursPerWeek: 20,
-      },
-      currentStreak: 0, // Will be loaded from DB
-      longestStreak: 0, // Will be loaded from DB
-      totalTasksCompleted: 0,
-      totalSessionsCompleted: 0,
-      totalHoursWorked: 0,
-      lastActiveDate: null,
+      };
+    }
+    
+    const records = data.data;
+    
+    // Calculate averages from historical data
+    const totalTasks = records.reduce((sum: number, record: any) => sum + (record.tasks_completed || 0), 0);
+    const totalSessions = records.reduce((sum: number, record: any) => sum + (record.focus_sessions || 0), 0);
+    const totalHours = records.reduce((sum: number, record: any) => sum + (record.completed_hours || 0), 0);
+    const activeDays = records.filter((record: any) => record.focus_sessions > 0).length;
+    
+    // Use active days for averaging (days with actual work)
+    const avgTasksPerDay = activeDays > 0 ? Math.round(totalTasks / activeDays) : 3;
+    const avgSessionsPerDay = activeDays > 0 ? Math.round(totalSessions / activeDays) : 8;
+    const avgHoursPerDay = activeDays > 0 ? Math.round((totalHours / activeDays) * 10) / 10 : 4;
+    
+    // Set minimum realistic goals
+    const calculatedGoals = {
+      tasksPerDay: Math.max(1, avgTasksPerDay),
+      sessionsPerDay: Math.max(4, avgSessionsPerDay),
+      hoursPerDay: Math.max(2, avgHoursPerDay),
     };
-  });
+    
+    console.log('🎯 Calculated daily goals:', {
+      historicalData: { totalTasks, totalSessions, totalHours, activeDays },
+      calculatedGoals
+    });
+    
+    return calculatedGoals;
+  } catch (error) {
+    console.error('❌ Failed to calculate daily goals:', error);
+    return {
+      tasksPerDay: 3,
+      sessionsPerDay: 8,
+      hoursPerDay: 4,
+    };
+  }
+};
+
+// Stats tracking state - LOAD FROM DB ON INIT with calculated goals
+const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
+  // Start with defaults, will be updated with calculated goals
+  return {
+    projectId: projectId || '',
+    dailyGoals: {
+      tasksPerDay: 3,  // Default, will be updated
+      sessionsPerDay: 8,  // Default, will be updated
+      hoursPerDay: 4,  // Default, will be updated
+    },
+    weeklyGoals: {
+      tasksPerWeek: 15,  // Will be recalculated based on daily goals
+      sessionsPerWeek: 40,
+      hoursPerWeek: 20,
+    },
+    currentStreak: 0, // Will be loaded from DB
+    longestStreak: 0, // Will be loaded from DB
+    totalTasksCompleted: 0,
+    totalSessionsCompleted: 0,
+    totalHoursWorked: 0,
+    lastActiveDate: null,
+  };
+});
 
   const [dailyStats, setDailyStats] = useState<DailyStats>(() => ({
     date: getTodayKey(),
@@ -740,6 +921,9 @@ export default function ProjectPlayAreaPage() {
     targetSessions: 8,
     targetHours: 4,
     achieved: false,
+    breakTime: 0,
+    deviationTime: 0,
+    focusTime: 0,
   }));
 
   const [sessionRecords, setSessionRecords] = useState<SessionRecord[]>([]);
@@ -748,6 +932,9 @@ export default function ProjectPlayAreaPage() {
   // Sync status tracking
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+
+  const [statsData, setStatsData] = useState<{ daily: any; weekly: any; monthly: any; yearly: any } | undefined>(undefined);
+  const { mergeWithSupabase, syncToSupabase, isLoaded } = useLocalStats(projectId);
 
   const plannedTaskOptions = boardTasks.filter((task) => task.status !== 'achieved' && !task.completedAt);
   const totalPlannedMinutes = plannedTaskOptions.reduce((sum, task) => {
@@ -809,6 +996,7 @@ export default function ProjectPlayAreaPage() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             projectId,
             dateKey: targetDate,
@@ -829,18 +1017,33 @@ export default function ProjectPlayAreaPage() {
 
       if (!response.ok) {
         let errorText = '';
+        let errorJson = null;
         try {
-          errorText = await response.text();
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            errorJson = await response.json();
+            errorText = JSON.stringify(errorJson);
+          } else {
+            errorText = await response.text();
+          }
         } catch (textError) {
           errorText = 'Could not read response text';
+          console.error('Error reading response:', textError);
         }
 
         console.error('❌ Sync failed - Response details:', {
           status: response.status,
           statusText: response.statusText,
           url: response.url,
-          body: errorText
+          headers: Object.fromEntries(response.headers.entries()),
+          body: errorText,
+          errorJson
         });
+        
+        if (response.status === 401) {
+          console.error('Authentication failed. User may need to re-login.');
+        }
+        
         throw new Error(`Sync failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
@@ -856,6 +1059,133 @@ export default function ProjectPlayAreaPage() {
     console.log('Pomodoro mode changed to:', pomodoroDurationMode);
     syncDailyHoursToDB();
   }, [pomodoroDurationMode, syncDailyHoursToDB]);
+
+  // Update tasksCompleted when tasks are completed
+  const completedTasksCount = boardTasks.filter(task => task.status === 'achieved' || task.completedAt).length;
+  useEffect(() => {
+    console.log('Tasks completed count changed to:', completedTasksCount);
+    syncDailyHoursToDB();
+  }, [completedTasksCount, syncDailyHoursToDB]);
+
+  // Sync planned hours when tasks are created or deleted
+  const tasksCount = boardTasks.length;
+  useEffect(() => {
+    console.log('Tasks count changed to:', tasksCount);
+    syncDailyHoursToDB();
+  }, [tasksCount, syncDailyHoursToDB]);
+
+  const fetchStats = useCallback(async (type: 'daily' | 'weekly' | 'monthly' | 'yearly') => {
+    try {
+      const response = await fetch(`/api/stats/${projectId}?type=${type}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error(`Stats API error (${type}):`, response.status, errorData);
+        return null;
+      }
+      const data = await response.json();
+      console.log(`Fetched ${type} stats:`, data);
+      return data;
+    } catch (error) {
+      console.error(`Error fetching ${type} stats:`, error);
+      return null;
+    }
+  }, [projectId]);
+
+  const loadStats = useCallback(async () => {
+    console.log('Loading stats for project:', projectId, 'isLoaded:', isLoaded);
+    
+    // Sync local data to DB first
+    const syncResult = await syncToSupabase();
+    console.log('Sync result:', syncResult);
+    
+    // Then fetch updated data from DB
+    const [daily, weekly, monthly, yearly] = await Promise.all([
+      fetchStats('daily'),
+      fetchStats('weekly'),
+      fetchStats('monthly'),
+      fetchStats('yearly'),
+    ]);
+    
+    console.log('Raw stats from API:', { daily, weekly, monthly, yearly });
+    
+    // Handle daily as array
+    let mergedDaily: any;
+    if (Array.isArray(daily)) {
+      const today = getTodayKey();
+      const todayEntry = daily.find(d => d.date === today) || {};
+      mergedDaily = {
+        ...todayEntry,
+        tasksCompleted: dailyStats.tasksCompleted === 0 ? (todayEntry.tasks_completed || 0) : dailyStats.tasksCompleted,
+        focusSessions: dailyPomodoro.count,
+        completedHours: dailyStats.hoursWorked === 0 ? (todayEntry.completed_hours || 0) : dailyStats.hoursWorked,
+        breakSessions: dailyStats.breakSessions === 0 ? (todayEntry.break_sessions || 0) : dailyStats.breakSessions,
+        currentStreak: projectStats.currentStreak,
+        longestStreak: projectStats.longestStreak,
+        plannedHours: calculatePlannedHours(getTodayKey()),
+      };
+      // Update today's entry in the array with merged data while preserving DB alerts
+      const updatedDaily = daily.map(d => {
+        if (d.date === today) {
+          return {
+            ...d,
+            // Preserve DB values for focused_alerts and deviated_alerts
+            focused_alerts: d.focused_alerts || 0,
+            deviated_alerts: d.deviated_alerts || 0,
+            // Update other fields with merged values
+            tasks_completed: mergedDaily.tasksCompleted,
+            focus_sessions: mergedDaily.focusSessions,
+            completed_hours: mergedDaily.completedHours,
+            break_sessions: mergedDaily.breakSessions,
+            current_streak: mergedDaily.currentStreak,
+            longest_streak: mergedDaily.longestStreak,
+            planned_hours: mergedDaily.plannedHours,
+          };
+        }
+        return d;
+      });
+      // Keep the full array for timeline
+      mergedDaily = { ...mergedDaily, dailyArray: updatedDaily };
+    } else {
+      mergedDaily = mergeWithSupabase(daily || {});
+    }
+    
+    console.log('Merged daily stats:', mergedDaily);
+    
+    setStatsData({ daily: mergedDaily, weekly, monthly, yearly });
+  }, [projectId, mergeWithSupabase, syncToSupabase, dailyStats, projectStats, dailyPomodoro, calculatePlannedHours, fetchStats]);
+
+  useEffect(() => {
+    if (projectId && isLoaded) {
+      loadStats().catch(err => console.error('Load stats error:', err));
+    }
+  }, [projectId, isLoaded, loadStats]);
+
+  // Load calculated daily goals based on historical performance
+  useEffect(() => {
+    async function loadCalculatedGoals() {
+      if (!projectId) return;
+
+      try {
+        const calculatedGoals = await calculateDailyGoals(projectId);
+
+        setProjectStats(prev => ({
+          ...prev,
+          dailyGoals: calculatedGoals,
+          weeklyGoals: {
+            tasksPerWeek: calculatedGoals.tasksPerDay * 5,  // 5 working days
+            sessionsPerWeek: calculatedGoals.sessionsPerDay * 5,
+            hoursPerWeek: calculatedGoals.hoursPerDay * 5,
+          },
+        }));
+
+        console.log('✅ Updated project stats with calculated goals:', calculatedGoals);
+      } catch (error) {
+        console.error('❌ Failed to load calculated goals:', error);
+      }
+    }
+
+    loadCalculatedGoals();
+  }, [projectId]);
 
   // Move recordSessionCompletion here, before it's used
   const playNotificationSound = useCallback(() => {
@@ -974,7 +1304,7 @@ export default function ProjectPlayAreaPage() {
     const sessionEnd = new Date();
     
     // For focus sessions: use accumulated time + current segment time
-    // For breaks: use planned duration (we don't track break time)
+    // For breaks: use planned duration for session record, but track actual time for break_time
     let actualDurationSeconds: number;
     if (mode === 'focus') {
       const currentSegmentSeconds = sessionStartTime 
@@ -983,10 +1313,32 @@ export default function ProjectPlayAreaPage() {
       actualDurationSeconds = accumulatedSeconds + currentSegmentSeconds;
       console.log(`✅ Session complete: accumulated=${accumulatedSeconds.toFixed(1)}s + current=${currentSegmentSeconds.toFixed(1)}s = total=${actualDurationSeconds.toFixed(1)}s`);
     } else {
-      actualDurationSeconds = sessionDuration; // Breaks use planned duration
+      // For breaks: use planned duration for session record
+      actualDurationSeconds = sessionDuration;
+      console.log(`✅ Break session complete: planned duration=${sessionDuration}s`);
     }
     
     const actualDurationMinutes = actualDurationSeconds / 60;
+    
+    // Track break_time for successful break completions (only when timer completes, not on reset)
+    if (mode === 'short' || mode === 'long') {
+      setDailyStats(prev => {
+        const newBreakTime = (prev.breakTime || 0) + actualDurationMinutes;
+        const newStats = {
+          ...prev,
+          breakTime: newBreakTime,
+        };
+        
+        console.log(`📊 Break time updated: ${prev.breakTime || 0} → ${newBreakTime} minutes (+${actualDurationMinutes.toFixed(2)}m)`);
+        
+        // Save to localStorage
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(`${DAILY_STATS_STORAGE_KEY}_${getTodayKey()}`, JSON.stringify(newStats));
+        }
+        
+        return newStats;
+      });
+    }
 
     console.log(`⏱️ Session duration: planned=${sessionDuration}s, actual=${actualDurationSeconds.toFixed(1)}s`);
 
@@ -1597,14 +1949,14 @@ export default function ProjectPlayAreaPage() {
         
         // Check if we need to update streak based on yesterday's activity
         const today = getTodayKey();
-        const lastActiveDate = parsed.lastActiveDate;
+        const parsedLastActiveDate = parsed.lastActiveDate;
         
-        if (lastActiveDate && lastActiveDate !== today) {
+        if (parsedLastActiveDate && parsedLastActiveDate !== today) {
           // App was last used on a different day, check if streak should continue
           const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           
-          // Only check if lastActiveDate was yesterday
-          if (lastActiveDate === yesterday) {
+          // Only check if parsedLastActiveDate was yesterday
+          if (parsedLastActiveDate === yesterday) {
             console.log('🔄 Checking yesterday activity for streak continuation...');
             
             // First check localStorage for yesterday's activity (primary)
@@ -1663,7 +2015,7 @@ export default function ProjectPlayAreaPage() {
               .catch(error => {
                 console.warn('Failed to verify yesterday activity with API, using localStorage + activity assumption:', error);
                 // Fallback: use localStorage + assume activity if user was active yesterday
-                const assumedYesterdayWorked = lastActiveDate === yesterday; // If they were using the app yesterday, assume they worked
+                const assumedYesterdayWorked = parsedLastActiveDate === yesterday; // If they were using the app yesterday, assume they worked
                 const verifiedYesterdayWorked = yesterdayHadActivity || assumedYesterdayWorked;
                 
                 const updatedStats = {
@@ -1821,7 +2173,8 @@ export default function ProjectPlayAreaPage() {
           if (settings.long_break_interval) setLongBreakInterval(settings.long_break_interval);
           if (settings.auto_check_tasks !== undefined) setAutoCheckTasks(settings.auto_check_tasks);
           if (settings.send_completed_to_bottom !== undefined) setSendCompletedToBottom(settings.send_completed_to_bottom);
-          if (settings.alerts_enabled !== undefined) setAlertsEnabled(settings.alerts_enabled);
+          // Note: alerts_enabled is intentionally NOT restored from localStorage
+          // Focus Alert checkbox should always be unchecked by default when app reopens
           if (settings.alert_frequency) setStayOnTaskInterval(settings.alert_frequency);
           if (settings.stay_on_task_repeat !== undefined) {
             setStayOnTaskRepeat(settings.stay_on_task_repeat);
@@ -2084,14 +2437,20 @@ export default function ProjectPlayAreaPage() {
         console.warn('Could not fetch yesterday\'s longest_streak:', error);
       }
 
-      // Calculate longest_streak: max of yesterday's longest_streak and current_streak (excluding today)
-      const calculatedLongestStreak = Math.max(yesterdayLongestStreak, projectStats.currentStreak);
+      // Recalculate streaks from full history to ensure accuracy
+      console.log('🔄 Recalculating streaks from full history...');
+      const recalculatedStreaks = await calculateStreakFromHistory(projectId, dailyPomodoro.count);
+      console.log('✅ Recalculated streaks:', recalculatedStreaks);
 
-      // Update projectStats if longestStreak has increased
-      if (calculatedLongestStreak > projectStats.longestStreak) {
+      // Use the recalculated longest streak (which now includes the fix for off-by-one error)
+      const calculatedLongestStreak = recalculatedStreaks.longestStreak;
+
+      // Update projectStats with recalculated values
+      if (calculatedLongestStreak > projectStats.longestStreak || recalculatedStreaks.currentStreak !== projectStats.currentStreak) {
         setProjectStats(prev => {
           const updated = {
             ...prev,
+            currentStreak: recalculatedStreaks.currentStreak,
             longestStreak: calculatedLongestStreak,
           };
           // Save to localStorage
@@ -2113,7 +2472,7 @@ export default function ProjectPlayAreaPage() {
         projectId,
         date: today,
         focusSessions: dailyPomodoro.count,
-        currentStreak: projectStats.currentStreak,
+        currentStreak: recalculatedStreaks.currentStreak,
         longestStreak: calculatedLongestStreak,
         tasksCompleted: dailyStats.tasksCompleted,
         tasksCreated: boardTasks.length,
@@ -2121,6 +2480,11 @@ export default function ProjectPlayAreaPage() {
         completedHours: dailyStats.hoursWorked,
         totalSessionTime: Math.round(totalFocusTime),
         breakSessions: dailyStats.breakSessions, // Use direct count instead of calculation
+        focused_alerts: dailyStats.focusedAlerts || 0,
+        deviated_alerts: dailyStats.deviatedAlerts || 0,
+        break_time: dailyStats.breakTime || 0,
+        deviation_time: dailyStats.deviationTime || 0,
+        focus_time: dailyStats.focusTime || 0,
         sessions: currentSessionRecords.filter(record => record.startTime.startsWith(today))
       };
 
@@ -2394,6 +2758,9 @@ export default function ProjectPlayAreaPage() {
           breakSessions: 0, // Reset break sessions for new day
           hoursWorked: 0,
           achieved: false,
+          breakTime: 0, // Reset break time for new day
+          deviationTime: 0, // Reset deviation time for new day
+          focusTime: 0, // Reset focus time for new day
         }));
         setSessionRecords([]); // Clear session records for new day
         // Note: currentStreak is now properly maintained above
@@ -2593,12 +2960,18 @@ export default function ProjectPlayAreaPage() {
     setActiveControl(null);
   };
 
-  const handleThemeSelect = (theme: ThemePreset) => {
-    setSelectedThemeId(theme.id);
-    setThemeWallpaper(theme.wallpaperUrl);
+  const handleThemeSelect = (preset: ThemePreset) => {
+    setSelectedThemeId(preset.id);
+    setThemeWallpaper(preset.wallpaperUrl);
+    setTheme({
+      id: preset.id,
+      name: preset.title,
+      wallpaper_url: preset.wallpaperUrl,
+      swatches: preset.swatches,
+    });
     setThemeDrawerOpen(false);
-    const [primary = '#0f172a', secondary = '#0b1120', tertiary = '#22d3ee'] = theme.swatches || [];
-    setThemeColors({
+    const [primary = '#0f172a', secondary = '#0b1120', tertiary = '#22d3ee'] = preset.swatches || [];
+    setCustomThemeColors({
       surface: hexToRgba(primary, 0.82),
       panel: hexToRgba(secondary, 0.88),
       border: hexToRgba('#ffffff', 0.08),
@@ -2627,64 +3000,60 @@ export default function ProjectPlayAreaPage() {
 
   const getFocusDuration = () => getFocusDurationForTask(currentBoardTask);
 
-  // Alert Response Handler - sync alert selections to database
   const handleAlertResponse = useCallback(async (response: 'focused' | 'deviated') => {
     setAlertModalOpen(false);
     setCurrentAlertTask(null);
 
-    let newFocusedCount = projectStats.focused_alerts || 0;
-    let newDeviatedCount = projectStats.deviated_alerts || 0;
+    // Calculate time based on alert frequency for both focused and deviated responses
+    const alertFrequencyMinutes = alertConfig?.frequency || 0;
+    const focusTimeToAdd = response === 'focused' ? alertFrequencyMinutes : 0;
+    const deviationTimeToAdd = response === 'deviated' ? alertFrequencyMinutes : 0;
 
-    // Calculate new counts & update local state
-    setProjectStats(prev => {
+    // Update daily stats
+    setDailyStats(prev => {
       const nextFocused = response === 'focused'
-        ? (prev.focused_alerts || 0) + 1
-        : (prev.focused_alerts || 0);
+        ? (prev.focusedAlerts || 0) + 1
+        : (prev.focusedAlerts || 0);
 
       const nextDeviated = response === 'deviated'
-        ? (prev.deviated_alerts || 0) + 1
-        : (prev.deviated_alerts || 0);
+        ? (prev.deviatedAlerts || 0) + 1
+        : (prev.deviatedAlerts || 0);
 
-      newFocusedCount = nextFocused;
-      newDeviatedCount = nextDeviated;
+      const nextFocusTime = (prev.focusTime || 0) + focusTimeToAdd;
+      const nextDeviationTime = (prev.deviationTime || 0) + deviationTimeToAdd;
 
-      return {
+      const newStats = {
         ...prev,
-        focused_alerts: nextFocused,
-        deviated_alerts: nextDeviated
+        focusedAlerts: nextFocused,
+        deviatedAlerts: nextDeviated,
+        focusTime: nextFocusTime,
+        deviationTime: nextDeviationTime
       };
+
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(`${DAILY_STATS_STORAGE_KEY}_${getTodayKey()}`, JSON.stringify(newStats));
+      }
+
+      return newStats;
     });
 
     console.log(`📊 Alert recorded: ${response}`, {
-      focused: newFocusedCount,
-      deviated: newDeviatedCount,
+      focused: response === 'focused' ? (dailyStats.focusedAlerts || 0) + 1 : dailyStats.focusedAlerts || 0,
+      deviated: response === 'deviated' ? (dailyStats.deviatedAlerts || 0) + 1 : dailyStats.deviatedAlerts || 0,
+      focusTime: response === 'focused' 
+        ? `${(dailyStats.focusTime || 0)} → ${(dailyStats.focusTime || 0) + focusTimeToAdd} minutes (+${focusTimeToAdd}m)`
+        : `${dailyStats.focusTime || 0} minutes (unchanged)`,
+      deviationTime: response === 'deviated' 
+        ? `${(dailyStats.deviationTime || 0)} → ${(dailyStats.deviationTime || 0) + deviationTimeToAdd} minutes (+${deviationTimeToAdd}m)`
+        : `${dailyStats.deviationTime || 0} minutes (unchanged)`,
+      alertFrequency: alertFrequencyMinutes,
       task: currentAlertTask?.title
     });
 
-    // Sync to database (send delta counts to align with incremental API)
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const syncResponse = await fetch('/api/daily-achievements', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: project?.id,
-          date: today,
-          focused_alerts: response === 'focused' ? 1 : 0,
-          deviated_alerts: response === 'deviated' ? 1 : 0
-        })
-      });
-
-      if (!syncResponse.ok) {
-        throw new Error(`API error: ${syncResponse.status}`);
-      }
-
-      const data = await syncResponse.json();
-      console.log('✅ Alert synced successfully:', data);
-    } catch (error) {
-      console.error('❌ Failed to sync alert to database:', error);
-    }
-  }, [project?.id, projectStats.focused_alerts, projectStats.deviated_alerts, currentAlertTask]);
+    // Sync alerts to database
+    await syncDailyHoursToDB();
+  }, [currentAlertTask, dailyStats.focusedAlerts, dailyStats.deviatedAlerts, dailyStats.focusTime, dailyStats.deviationTime, alertConfig, syncDailyHoursToDB]);
 
   const getShortBreakDuration = () => {
     if (!currentBoardTask) {
@@ -3019,19 +3388,6 @@ export default function ProjectPlayAreaPage() {
     }
   };
 
-  const fetchBoardTasks = async () => {
-    try {
-      const response = await fetch(`/api/tasks?projectId=${projectId}`);
-      if (response.ok) {
-        const data = await response.json();
-        const allTasks = data.tasks || [];
-        setBoardTasks(allTasks);
-      }
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-    }
-  };
-
   const selectedPriority = currentBoardTask ? PRIORITY_META[currentBoardTask.priority] : null;
   const currentModeLabel =
     mode === 'focus' ? 'Focus sprint' : mode === 'short' ? 'Short break' : 'Long break';
@@ -3279,7 +3635,7 @@ export default function ProjectPlayAreaPage() {
       <div className="fixed left-6 top-6 z-50">
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => router.push('/dashboard/home')}
           className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10/80 px-4 py-2 text-sm font-semibold text-white shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:border-white/50 hover:bg-white/15"
           aria-label="Go back"
         >
@@ -3317,10 +3673,10 @@ export default function ProjectPlayAreaPage() {
                   ? 'border-emerald-300/60 bg-emerald-400/25'
                   : 'border-white/20 bg-white/10/80 hover:border-white/50 hover:bg-white/15'
               }`}
-              aria-label="Open music selector"
+              aria-label="Open media player"
             >
               <Music className="h-4 w-4" />
-              Music
+              Player
             </button>
             <button
               type="button"
@@ -3425,11 +3781,6 @@ export default function ProjectPlayAreaPage() {
                 <p className="text-sm text-white/60">Select a planned mission and stay in rhythm.</p>
               </div>
             </div>
-            {showInterface && (
-              <div className="flex w-full justify-center">
-                <ProjectViewSwitch projectId={projectId ?? ''} activeView="play" />
-              </div>
-            )}
 
             {showInterface && (
               <div className="w-full max-w-4xl">
@@ -3455,7 +3806,7 @@ export default function ProjectPlayAreaPage() {
                       <>
                         <p className="text-[10px] uppercase tracking-[0.45em] text-white/50" style={{ textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>Current mission</p>
                         <div className="mt-1 flex items-center gap-3">
-                          <h3 className="font-heading text-2xl font-semibold text-white" style={{ textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>
+                          <h3 className="font-heading text-2xl font-semibold text-white backdrop-blur-xl bg-white/10 border border-white/20 rounded-lg px-3 py-1" style={{ textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>
                             {currentBoardTask ? currentBoardTask.title : 'No mission selected'}
                           </h3>
                           <button
@@ -3485,7 +3836,7 @@ export default function ProjectPlayAreaPage() {
                   </div>
                   <div className="flex flex-col items-end gap-3">
                     <div
-                      className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs text-white/80"
+                      className="inline-flex items-center gap-2 rounded-full border backdrop-blur-xl px-4 py-1.5 text-xs text-white/80"
                       style={chipStyle}
                     >
                       <span className="text-[10px] uppercase tracking-[0.4em] text-white/50">Total planned</span>
@@ -3495,14 +3846,14 @@ export default function ProjectPlayAreaPage() {
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-white/80">
                   <div
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm"
+                    className="inline-flex items-center gap-2 rounded-full border backdrop-blur-xl px-3 py-1.5 text-sm"
                     style={chipStyle}
                   >
                     <span className="text-lg drop-shadow-[0_5px_18px_rgba(248,250,109,0.55)]">⚡</span>
                     <span className="text-base font-semibold text-white">{projectStats.currentStreak}</span>
                   </div>
                   <div
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm"
+                    className="inline-flex items-center gap-2 rounded-full border backdrop-blur-xl px-3 py-1.5 text-sm"
                     style={chipStyle}
                   >
                     <span className="text-lg drop-shadow-[0_5px_15px_rgba(45,212,191,0.45)]">⏱️</span>
@@ -3575,6 +3926,19 @@ export default function ProjectPlayAreaPage() {
           </div>
         }
       />
+      {hasActiveWallpaper && (
+        <div className="pointer-events-auto fixed bottom-6 left-6 z-30">
+          <a
+            href="https://www.freepik.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-white/60 backdrop-blur-lg transition hover:border-white/35 hover:text-white"
+          >
+            <span className="text-white/40">Designed by</span>
+            <span className="text-white">Freepik</span>
+          </a>
+        </div>
+      )}
       <TodoTaskBoardModal
         open={showInterface && taskBoardOpen}
         tasks={boardTasks}
@@ -3590,12 +3954,10 @@ export default function ProjectPlayAreaPage() {
         onRefresh={debouncedFetchBoardTasks}
         showTimerEdit={pomodoroDurationMode === 'customised'}
       />
-      <MusicDrawer
+      <MediaPlayer
         open={showInterface && musicDrawerOpen}
         onClose={() => setMusicDrawerOpen(false)}
-        currentTrackId={currentTrackId}
-        positionClass="fixed right-6 top-24"
-        onTrackSelect={(track) => setCurrentTrackId(track?.id ?? null)}
+        positionClass="fixed right-6 top-40 lg:top-36 2xl:top-32"
       />
       <ThemeDrawer
         open={showInterface && themeDrawerOpen}
@@ -3624,6 +3986,9 @@ export default function ProjectPlayAreaPage() {
         isOpen={statsOverlayOpen}
         onClose={() => setStatsOverlayOpen(false)}
         lastActiveDate={projectStats.lastActiveDate}
+        statsData={statsData}
+        projectStats={projectStats}
+        refreshStats={loadStats}
       />
       <Toast message={toastMessage} visible={toastVisible} />
       {/* Floating control buttons */}

@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation';
+
 export default function LoginPage() {
-  return null;
+  redirect('/auth/login');
 }

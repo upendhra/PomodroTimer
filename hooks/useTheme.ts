@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { getThemeById, getDefaultThemeForPersona } from '@/lib/themes';
+import { getThemeById } from '@/lib/themes';
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -54,15 +55,16 @@ const useThemeStore = create<ThemeState>((set, get) => ({
 
   resolveTheme: async () => {
     const { projectTheme, customWallpaper, userSelectedTheme } = get();
-    let theme = projectTheme;
+    let theme = null;
+
     if (customWallpaper) {
       theme = { wallpaper_url: customWallpaper };
-    } else if (!theme && userSelectedTheme) {
+    } else if (projectTheme) {
+      theme = projectTheme;
+    } else if (userSelectedTheme) {
       theme = userSelectedTheme;
-    } else if (!theme) {
-      // Assume persona from user profile or default
-      theme = await getDefaultThemeForPersona('student'); // Placeholder, integrate with user data
     }
+
     set({ currentTheme: theme });
   },
 }));

@@ -87,8 +87,8 @@ export default function ProjectCreationModal({ isOpen, onClose }: ProjectCreatio
         return;
       }
 
-      // Redirect to project page
-      router.push(`/dashboard/projects/${data.id}`);
+      // Redirect directly to play area
+      router.push(`/dashboard/projects/${data.id}/play`);
       onClose();
     } catch (err) {
       console.error('Error:', err);

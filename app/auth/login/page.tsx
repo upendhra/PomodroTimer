@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
@@ -53,8 +54,9 @@ export default function LoginPage() {
       }
 
       if (data.user) {
-        // Redirect to dashboard after successful login
-        router.push('/dashboard/home');
+        // Redirect to the original page or dashboard home
+        const redirectTo = searchParams.get('redirectedFrom') || '/dashboard/home';
+        router.push(redirectTo);
       }
     } catch (err: any) {
       setError(err.message || "An error occurred during login");
@@ -196,5 +198,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
