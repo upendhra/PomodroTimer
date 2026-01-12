@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       break_time,
       deviation_time,
       focus_time,
+      long_break_time,
       sessions // Array of session records for recent_sessions table
     } = body;
 
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
       break_time: break_time || 0,
       deviation_time: deviation_time || 0,
       focus_time: focus_time || 0,
+      long_break_time: long_break_time || 0,
       updated_at: new Date().toISOString()
     };
 
@@ -233,7 +235,8 @@ export async function PATCH(request: NextRequest) {
       deviated_alerts,
       break_time,
       deviation_time,
-      focus_time
+      focus_time,
+      long_break_time
     } = body;
 
     // Validate required fields
@@ -274,6 +277,7 @@ export async function PATCH(request: NextRequest) {
         break_time: (existingRecord?.break_time || 0) + (break_time || 0),
         deviation_time: (existingRecord?.deviation_time || 0) + (deviation_time || 0),
         focus_time: (existingRecord?.focus_time || 0) + (focus_time || 0),
+        long_break_time: (existingRecord?.long_break_time || 0) + (long_break_time || 0),
         updated_at: new Date().toISOString()
       };
 
@@ -310,6 +314,7 @@ export async function PATCH(request: NextRequest) {
         break_time: break_time || 0,
         deviation_time: deviation_time || 0,
         focus_time: focus_time || 0,
+        long_break_time: long_break_time || 0,
         updated_at: new Date().toISOString()
       };
 
@@ -449,6 +454,7 @@ export async function GET(request: NextRequest) {
           break_time: 0,
           deviation_time: 0,
           focus_time: 0,
+          long_break_time: 0,
           user_id: userId || null
         };
         return NextResponse.json({ success: true, data: [defaultData] });

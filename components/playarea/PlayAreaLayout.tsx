@@ -12,7 +12,7 @@ interface PlayAreaLayoutProps {
 
 export default function PlayAreaLayout({ top, bottom, wrapTop = true, showBackgroundLayers = true, styleOverrides }: PlayAreaLayoutProps) {
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden text-white" style={styleOverrides}>
+    <div className="play-area-layout relative min-h-screen w-full overflow-x-hidden text-white" style={styleOverrides}>
       {showBackgroundLayers && (
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.25),_transparent_55%)]"></div>

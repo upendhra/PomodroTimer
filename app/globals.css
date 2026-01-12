@@ -1,8 +1,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Manrope:wght@300;400;500&display=swap');
+@import '../styles/theme.css';
+@import '../styles/spotlight-themes.css';
+@import '../styles/spotlight-themes-premium.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.settings-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(94, 137, 255, 0.65) transparent;
+}
+
+.settings-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.settings-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgba(94, 137, 255, 0.95), rgba(18, 24, 40, 0.9));
+  border: 2px solid rgba(15, 23, 42, 0.6);
+}
+
+.settings-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(122, 162, 255, 1), rgba(30, 33, 55, 0.95));
+}
 
 :root {
   --space-deep: #0f0a33;
@@ -316,3 +342,91 @@ body {
 .animate-wave-mist-1 { animation: wave-mist-1 20s ease-in-out infinite; }
 .animate-wave-mist-2 { animation: wave-mist-2 25s ease-in-out infinite; }
 .animate-wave-mist-3 { animation: wave-mist-3 30s ease-in-out infinite; }
+
+/* Word-wise Fade Animation for Proverbs */
+@keyframes word-fade {
+  0%, 80% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  85% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  90% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  95% {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-word-fade {
+  animation: word-fade 12s ease-in-out infinite;
+}
+
+/* Letter-wise Fade Animation for Proverbs */
+@keyframes letter-fade {
+  0%, 80% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  85% {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.9);
+  }
+  90% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.9);
+  }
+  95% {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-letter-fade {
+  animation: letter-fade 16s ease-in-out infinite;
+}
+
+/* Whole Proverb Fade Animation */
+@keyframes whole-fade {
+  0%, 75% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  80% {
+    opacity: 0;
+    transform: translateY(-15px) scale(0.95);
+  }
+  85% {
+    opacity: 0;
+    transform: translateY(15px) scale(0.95);
+  }
+  90% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  95% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-whole-fade {
+  animation: whole-fade 14s ease-in-out infinite;
+}

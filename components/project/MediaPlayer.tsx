@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pause, Play, Trash2, Upload, X, Volume2, VolumeX } from "lucide-react";
+import { Pause, Play, Trash2, Upload, X, Volume2, VolumeX, SkipBack, SkipForward, Music2, Repeat, ChevronDown, ChevronUp, ListMusic } from "lucide-react";
 import { createClient } from '@/lib/supabase/client';
 
 interface MusicRow {
   id: string;
   name: string;
   audio_url: string;
+  persona?: string;
+  is_default?: boolean;
 }
 
 interface Track {
@@ -16,15 +18,20 @@ interface Track {
   file?: File;  // Optional for remote URLs
   url: string;
   duration?: number;
+  author?: string;
+  source?: string;
 }
 
 interface MediaPlayerProps {
   open: boolean;
   onClose: () => void;
   positionClass?: string;
+  externalTrackSelect?: Track | null; // External track selection from settings
+  onExternalTrackProcessed?: () => void; // Callback to clear external selection
+  onOpenSettingsMusic?: () => void; // Opens settings panel music tab
 }
 
-export default function MediaPlayer({ open, onClose, positionClass = "fixed right-6 top-24" }: MediaPlayerProps) {
+export default function MediaPlayer({ open, onClose, positionClass = "fixed right-6 top-24", externalTrackSelect, onExternalTrackProcessed, onOpenSettingsMusic }: MediaPlayerProps) {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -32,6 +39,8 @@ export default function MediaPlayer({ open, onClose, positionClass = "fixed righ
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isRepeat, setIsRepeat] = useState(false);
+  const [isPlaylistExpanded, setIsPlaylistExpanded] = useState(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -41,7 +50,7 @@ export default function MediaPlayer({ open, onClose, positionClass = "fixed righ
   // Fetch remote tracks from Supabase on mount
   useEffect(() => {
     const fetchTracks = async () => {
-      const { data, error } = await supabase.from('music').select('id, name, audio_url');
+      const { data, error } = await supabase.from('music').select('id, name, audio_url, persona');
       if (error) {
         console.error('Error fetching music tracks:', error);
       } else {
@@ -49,6 +58,8 @@ export default function MediaPlayer({ open, onClose, positionClass = "fixed righ
           id: row.id,
           name: row.name,
           url: row.audio_url,
+          author: row.persona,
+          source: undefined,
           file: undefined,
         }));
         setTracks(remoteTracks);
@@ -79,30 +90,64 @@ export default function MediaPlayer({ open, onClose, positionClass = "fixed righ
     }
   }, [volume, isMuted]);
 
-  const handleTrackSelect = useCallback((index: number) => {
+  const handleTrackSelect = useCallback((index: number, autoPlay: boolean = true) => {
     if (!audioRef.current) return;
 
     const track = tracks[index];
     if (!track) return;
 
-    // Pause current if playing
-    if (isPlaying) {
-      audioRef.current.pause();
-    }
-
-    // Load new track
-    audioRef.current.src = track.url;
+    // Set loading state first
     setCurrentTrackIndex(index);
     setCurrentTime(0);
     setDuration(0);
 
-    // Auto-play new track
-    audioRef.current.play();
-    setIsPlaying(true);
+    // Stop current playback before loading new track to avoid AbortError
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+
+    // Load new track
+    audioRef.current.src = track.url;
+
+    if (autoPlay) {
+      const attemptPlay = () => {
+        if (!audioRef.current) return;
+        audioRef.current.play()
+          .then(() => setIsPlaying(true))
+          .catch((error) => {
+            console.warn('Failed to auto-play track:', error);
+          });
+      };
+
+      let fallbackTimeout: number | undefined;
+
+      // Once metadata is ready, play immediately; otherwise fallback after short delay
+      const metadataHandler = () => {
+        if (fallbackTimeout) {
+          clearTimeout(fallbackTimeout);
+        }
+        attemptPlay();
+      };
+
+      audioRef.current.addEventListener('loadedmetadata', metadataHandler, { once: true });
+
+      fallbackTimeout = window.setTimeout(() => {
+        audioRef.current?.removeEventListener('loadedmetadata', metadataHandler);
+        attemptPlay();
+      }, 150);
+    }
+
   }, [tracks, isPlaying]);
 
   const handleNext = useCallback(() => {
     if (tracks.length === 0 || currentTrackIndex === null) return;
+
+    // If repeat is enabled, replay the current track
+    if (isRepeat) {
+      handleTrackSelect(currentTrackIndex);
+      return;
+    }
 
     if (currentTrackIndex < tracks.length - 1) {
       const nextIndex = currentTrackIndex + 1;
@@ -111,7 +156,7 @@ export default function MediaPlayer({ open, onClose, positionClass = "fixed righ
       audioRef.current.pause();
       setIsPlaying(false);
     }
-  }, [tracks, currentTrackIndex, handleTrackSelect]);
+  }, [tracks, currentTrackIndex, handleTrackSelect, isRepeat]);
 
   // Handle audio events
   useEffect(() => {
@@ -120,7 +165,15 @@ export default function MediaPlayer({ open, onClose, positionClass = "fixed righ
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleLoadedMetadata = () => setDuration(audio.duration);
-    const handleEnded = () => handleNext();
+    const handleEnded = () => {
+      // If repeat is enabled, replay the current track
+      if (isRepeat && currentTrackIndex !== null) {
+        audio.currentTime = 0;
+        audio.play();
+      } else {
+        handleNext();
+      }
+    };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -131,15 +184,49 @@ export default function MediaPlayer({ open, onClose, positionClass = "fixed righ
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [tracks]);
+  }, [handleNext, isRepeat, currentTrackIndex]);
 
-  // Handle drawer close
+  // Handle drawer close - music continues playing
+  // User must explicitly pause the music using the pause button
+
+  // Handle external track selection from settings (overrides current playback)
   useEffect(() => {
-    if (!open && audioRef.current) {
-      audioRef.current.pause();
-      setIsPlaying(false);
+    if (externalTrackSelect && tracks.length > 0) {
+      console.log('🎵 External track selection received:', externalTrackSelect.name);
+      
+      // Find the track index in our tracks array
+      const trackIndex = tracks.findIndex(track => track.id === externalTrackSelect.id);
+      
+      if (trackIndex !== -1) {
+        console.log('🎵 Found track at index:', trackIndex);
+        handleTrackSelect(trackIndex);
+      } else {
+        // Track not in our current tracks array, add it and play it
+        console.log('🎵 Track not found in current tracks, adding it');
+        const newTrack: Track = {
+          ...externalTrackSelect,
+          duration: undefined,
+          author: externalTrackSelect.author,
+          source: 'settings'
+        };
+        
+        setTracks(prev => [...prev, newTrack]);
+        
+        // Play the newly added track (it will be at the end)
+        setTimeout(() => {
+          const newIndex = tracks.length; // Will be at the end after state update
+          handleTrackSelect(newIndex);
+        }, 100);
+      }
+      
+      // Clear the external selection after processing
+      if (onExternalTrackProcessed) {
+        setTimeout(() => {
+          onExternalTrackProcessed();
+        }, 1000); // Delay to ensure processing is complete
+      }
     }
-  }, [open]);
+  }, [externalTrackSelect, tracks, handleTrackSelect]);
 
   const handleFileSelect = useCallback((files: FileList | null) => {
     if (!files) return;
@@ -242,177 +329,369 @@ export default function MediaPlayer({ open, onClose, positionClass = "fixed righ
 
   return (
     <div
-      className={`pointer-events-none ${positionClass} z-30 transition-all duration-300 ${
+      className={`pointer-events-none ${positionClass} z-50 transition-all duration-300 ${
         open ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
       }`}
     >
       <div
-        className="pointer-events-auto w-[320px] rounded-[24px] border border-white/10 p-4 text-white shadow-[0_18px_60px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
+        className="pointer-events-auto w-[340px] rounded-2xl border border-white/15 text-white shadow-[0_20px_70px_rgba(0,0,0,0.6)] backdrop-blur-3xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         style={{
           background:
-            "linear-gradient(160deg, rgba(20,24,40,0.96) 0%, rgba(10,12,24,0.92) 70%, rgba(8,10,20,0.9) 100%)",
+            "linear-gradient(135deg, rgba(18,18,18,0.98) 0%, rgba(24,24,24,0.96) 50%, rgba(18,18,18,0.98) 100%)",
         }}
       >
         {/* Header */}
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <p className="text-[9px] uppercase tracking-[0.35em] text-white/40">Player</p>
-            <p className="font-heading text-base font-semibold text-white">Compact Deck</p>
-          </div>
-          <button
-            type="button"
-            aria-label="Close media player"
-            onClick={onClose}
-            className="rounded-full border border-white/20 bg-white/5 p-1.5 text-white transition hover:bg-white/15"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        {/* Upload */}
-        <div
-          className="mb-3 rounded-2xl border border-dashed border-white/20 p-3 text-center text-xs text-white/65 transition hover:border-white/40"
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*"
-            multiple
-            onChange={(e) => handleFileSelect(e.target.files)}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="mx-auto flex flex-col items-center gap-1 text-white/70 hover:text-white transition"
-          >
-            <div className="rounded-xl bg-white/10 p-2">
-              <Upload className="h-4 w-4" />
-            </div>
-            <span className="text-[11px] font-medium">Drop or browse files</span>
-          </button>
-        </div>
-
-        {/* Now playing + progress */}
-        <div className="mb-2 rounded-2xl border border-white/10 bg-white/5/10 p-2">
+        <div className="relative flex items-center justify-between px-4 py-3 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <div className="flex flex-col">
-              <span className="text-[9px] uppercase tracking-[0.35em] text-white/40">Now</span>
-              <span className="text-xs font-semibold text-white truncate">
-                {currentTrack?.name ?? "Add a track"}
-              </span>
-              <span className="text-[10px] text-white/50">{tracks.length} in queue</span>
+            <div className="rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 p-1.5">
+              <Music2 className="h-3.5 w-3.5 text-black" />
+            </div>
+            <p className="font-semibold text-sm text-white">Music Player</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {onOpenSettingsMusic && (
+              <button
+                type="button"
+                aria-label="Open settings music tab"
+                title="Open music settings"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenSettingsMusic();
+                }}
+                className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
+                style={{ pointerEvents: 'auto' }}
+              >
+                <ListMusic className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label="Close media player"
+              onClick={(e) => {
+                console.log('🎵 Close button clicked - MediaPlayer');
+                console.log('🎵 Event:', e);
+                console.log('🎵 Target:', e.target);
+                console.log('🎵 Current target:', e.currentTarget);
+                e.stopPropagation();
+                console.log('🎵 Calling onClose function');
+                onClose();
+                console.log('🎵 onClose function called');
+              }}
+              className="relative z-10 rounded-lg border border-white/10 bg-white/5 p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/20"
+              style={{ pointerEvents: 'auto' }}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Now Playing Section with Album Art */}
+        <div className="px-4 py-4">
+          <div className="flex items-center gap-3 mb-4">
+            {/* Album Art */}
+            <div className="relative flex-shrink-0">
+              <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-white/10 flex items-center justify-center overflow-hidden">
+                {currentTrack ? (
+                  <div className="w-full h-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center">
+                    <Music2 className="h-7 w-7 text-black/80" />
+                  </div>
+                ) : (
+                  <Music2 className="h-7 w-7 text-white/30" />
+                )}
+              </div>
+              {isPlaying && (
+                <div className="absolute -bottom-1 -right-1 bg-emerald-400 rounded-full p-1">
+                  <div className="w-2 h-2 bg-black rounded-full animate-pulse" />
+                </div>
+              )}
+            </div>
+            
+            {/* Track Info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white truncate">
+                {currentTrack?.name ?? "No track selected"}
+              </p>
+              {currentTrack?.author ? (
+                <p className="text-xs text-white/60 truncate">
+                  {currentTrack.author}
+                </p>
+              ) : (
+                <p className="text-xs text-white/50">Select a track to play</p>
+              )}
+              <p className="text-[10px] text-white/40 mt-0.5">{tracks.length} tracks in queue</p>
             </div>
           </div>
-          <div
-            className="mt-3 h-0.5 cursor-pointer rounded-full bg-white/15"
-            onClick={handleProgressClick}
-          >
+
+          {/* Progress Bar */}
+          <div className="space-y-1.5">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-all"
-              style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
-            />
-          </div>
-          <div className="mt-1 flex justify-between text-[10px] text-white/45">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
+              className="group h-1 cursor-pointer rounded-full bg-white/10 hover:bg-white/15 transition-colors relative"
+              onClick={handleProgressClick}
+            >
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all relative"
+                style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+              >
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </div>
+            <div className="flex justify-between text-[10px] text-white/50 font-medium">
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-          <div className="flex flex-1 items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={handlePrevious}
-              disabled={tracks.length === 0}
-              className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-white transition hover:bg-white/15 disabled:opacity-40"
-            >
-              <span className="text-xs">⏮</span>
-            </button>
-            <button
-              type="button"
-              onClick={handlePlayPause}
-              disabled={tracks.length === 0}
-              className="rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-4 py-2.5 text-black shadow-[0_12px_25px_rgba(45,212,191,0.45)] transition hover:scale-[1.02] disabled:opacity-70"
-            >
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </button>
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={tracks.length === 0}
-              className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-white transition hover:bg-white/15 disabled:opacity-40"
-            >
-              <span className="text-xs">⏭</span>
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsMuted(!isMuted)}
-              className="rounded-xl border border-white/10 bg-white/5 p-2 text-white transition hover:bg-white/15"
-            >
-              {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
-              className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-white/15 accent-emerald-400"
-            />
+        <div className="px-4 py-3 border-t border-white/10 bg-white/5">
+          <div className="flex items-center justify-between gap-4">
+            {/* Playback Controls */}
+            <div className="flex items-center justify-center gap-2 flex-1">
+              <button
+                type="button"
+                onClick={handlePrevious}
+                disabled={tracks.length === 0}
+                className="rounded-full p-2 text-white/70 transition hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Previous"
+              >
+                <SkipBack className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handlePlayPause}
+                disabled={tracks.length === 0}
+                className="rounded-full bg-white p-2.5 text-black shadow-lg transition hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause className="h-5 w-5" fill="currentColor" /> : <Play className="h-5 w-5 ml-0.5" fill="currentColor" />}
+              </button>
+              <button
+                type="button"
+                onClick={handleNext}
+                disabled={tracks.length === 0}
+                className="rounded-full p-2 text-white/70 transition hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Next"
+              >
+                <SkipForward className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsRepeat(!isRepeat)}
+                className={`rounded-full p-2 transition hover:bg-white/10 ${
+                  isRepeat ? "text-emerald-400" : "text-white/70 hover:text-white"
+                }`}
+                title={isRepeat ? "Repeat: On" : "Repeat: Off"}
+              >
+                <Repeat className="h-4 w-4" />
+              </button>
+            </div>
+            
+            {/* Volume Controls */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsMuted(!isMuted)}
+                className="rounded-lg p-1.5 text-white/70 transition hover:text-white hover:bg-white/10"
+                title={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </button>
+              <div className="relative w-20">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => {
+                    setVolume(parseFloat(e.target.value));
+                    if (isMuted) setIsMuted(false);
+                  }}
+                  className="volume-slider w-full h-1 cursor-pointer appearance-none rounded-full bg-transparent"
+                  style={{
+                    background: `linear-gradient(to right, rgb(52, 211, 153) 0%, rgb(52, 211, 153) ${(isMuted ? 0 : volume) * 100}%, rgba(255,255,255,0.2) ${(isMuted ? 0 : volume) * 100}%, rgba(255,255,255,0.2) 100%)`
+                  }}
+                  title="Volume"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Playlist */}
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-[10px] uppercase tracking-[0.35em] text-white/40">Playlist</p>
+        {/* Queue Section */}
+        <div className="border-t border-white/10">
+          <div className="px-4 py-2.5 flex items-center justify-between bg-white/5">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold text-white/70">Queue</p>
+              <button
+                type="button"
+                onClick={() => setIsPlaylistExpanded(!isPlaylistExpanded)}
+                className="rounded-lg p-1 text-white/60 hover:text-white hover:bg-white/10 transition"
+                title={isPlaylistExpanded ? "Collapse" : "Expand"}
+              >
+                {isPlaylistExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 transition text-xs font-medium text-white"
+            >
+              <Upload className="h-3 w-3" />
+              Add
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              multiple
+              onChange={(e) => handleFileSelect(e.target.files)}
+              className="hidden"
+            />
           </div>
-          <div className="max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent">
-            {tracks.length === 0 ? (
-              <div className="rounded-2xl border border-white/5 bg-white/5 py-4 text-center text-xs text-white/45">
-                Empty queue · upload to begin
+          
+          {/* Drag and Drop Zone (when empty) */}
+          {isPlaylistExpanded && tracks.length === 0 && (
+            <div
+              className="mx-4 my-3 rounded-xl border-2 border-dashed border-white/20 p-6 text-center transition hover:border-white/30 hover:bg-white/5"
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+            >
+              <div className="flex flex-col items-center gap-2">
+                <div className="rounded-full bg-white/10 p-3">
+                  <Music2 className="h-5 w-5 text-white/50" />
+                </div>
+                <p className="text-xs font-medium text-white/70">No tracks yet</p>
+                <p className="text-[10px] text-white/50">Drop files or click Add to begin</p>
               </div>
-            ) : (
-              <div className="space-y-1.5">
+            </div>
+          )}
+          
+          {/* Track List */}
+          {isPlaylistExpanded && tracks.length > 0 && (
+            <div className="max-h-52 overflow-y-auto custom-scrollbar">
+              <div className="px-2 py-1.5 space-y-0.5">
                 {tracks.map((track, index) => (
                   <div
                     key={track.id}
-                    className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs transition ${
+                    className={`group flex items-center gap-2 rounded-lg px-2.5 py-1.5 transition cursor-pointer ${
                       index === currentTrackIndex
-                        ? "border-emerald-300/40 bg-emerald-400/10"
-                        : "border-white/5 bg-white/5 hover:bg-white/10"
+                        ? "bg-emerald-500/20 border border-emerald-400/30"
+                        : "hover:bg-white/10 border border-transparent"
                     }`}
+                    onClick={() => handleTrackSelect(index)}
                   >
+                    {/* Track Number / Playing Indicator */}
+                    <div className="flex-shrink-0 w-5 text-center">
+                      {index === currentTrackIndex && isPlaying ? (
+                        <div className="flex items-center justify-center gap-0.5">
+                          <div className="w-0.5 h-3 bg-emerald-400 animate-pulse" style={{ animationDelay: '0ms' }} />
+                          <div className="w-0.5 h-2 bg-emerald-400 animate-pulse" style={{ animationDelay: '150ms' }} />
+                          <div className="w-0.5 h-3 bg-emerald-400 animate-pulse" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      ) : (
+                        <span className={`text-[10px] font-medium ${
+                          index === currentTrackIndex ? "text-emerald-400" : "text-white/50 group-hover:text-white/70"
+                        }`}>
+                          {index + 1}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Track Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-medium truncate ${
+                        index === currentTrackIndex ? "text-emerald-400" : "text-white"
+                      }`}>
+                        {track.name}
+                      </p>
+                      {track.author && (
+                        <p className="text-[10px] text-white/60 truncate">
+                          {track.author}
+                        </p>
+                      )}
+                    </div>
+                    
+                    {/* Remove Button */}
                     <button
                       type="button"
-                      onClick={() => handleTrackSelect(index)}
-                      className="flex flex-1 flex-col text-left"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveTrack(index);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 rounded-lg p-1.5 text-white/60 hover:text-red-400 hover:bg-white/10 transition"
+                      title="Remove"
                     >
-                      <span className="font-semibold text-white truncate">{track.name}</span>
-                      <span className="text-[10px] text-white/45">Track {index + 1}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTrack(index)}
-                      className="rounded-full border border-white/10 bg-white/5 p-1 text-white/60 transition hover:text-red-400"
-                    >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
+      
+      {/* Custom Styles */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(52, 211, 153, 0.4);
+          border-radius: 10px;
+          transition: background 0.2s;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(52, 211, 153, 0.6);
+        }
+        
+        .volume-slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: white;
+          cursor: pointer;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          transition: transform 0.1s;
+        }
+        
+        .volume-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.2);
+        }
+        
+        .volume-slider::-webkit-slider-thumb:active {
+          transform: scale(1.1);
+        }
+        
+        .volume-slider::-moz-range-thumb {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: white;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          transition: transform 0.1s;
+        }
+        
+        .volume-slider::-moz-range-thumb:hover {
+          transform: scale(1.2);
+        }
+        
+        .volume-slider::-moz-range-thumb:active {
+          transform: scale(1.1);
+        }
+      `}</style>
     </div>
   );
 }

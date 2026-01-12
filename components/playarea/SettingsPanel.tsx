@@ -7,6 +7,8 @@ import ThemeSettings from '@/components/settings/ThemeSettings';
 import { createClient } from '@/lib/supabase/client';
 import { useMusic } from '@/hooks/useMusic';
 
+type QuoteCategory = 'drive' | 'uplift' | 'consistency' | 'love' | 'wisdom' | 'focus';
+
 export type TimerMode = 'pomodoro' | 'stopwatch' | 'countdown' | 'interval';
 export type StayOnTaskFallback = 'focused' | 'deviated';
 export type PomodoroDurationMode = 'default' | 'customised';
@@ -61,12 +63,80 @@ interface SettingsPanelProps {
   defaultLongBreak: number;
   onDefaultLongBreakChange: (value: number) => void;
   currentTaskDuration?: number; // Duration in minutes of the selected task
+  onMusicSelect?: (track: Track) => void; // Callback when music is selected from settings
+  musicCategoryResetSignal?: number; // Signal to reset music filter to "All"
+  quotesEnabled?: boolean;
+  onQuotesEnabledChange?: (enabled: boolean) => void;
+  quoteLanguage?: 'english' | 'tamil';
+  onQuoteLanguageChange?: (language: 'english' | 'tamil') => void;
+  selectedQuoteCategory?: QuoteCategory;
+  onSelectedQuoteCategoryChange?: (category: QuoteCategory) => void;
 }
+
+type QuoteContent = {
+  text: string;
+  author: string;
+};
+
+const QUOTE_CONTENT: Record<'english' | 'tamil', Record<QuoteCategory, QuoteContent>> = {
+  english: {
+    drive: {
+      text: 'Success is not final, failure is not fatal: it is the courage to continue that counts.',
+      author: 'Winston Churchill',
+    },
+    uplift: {
+      text: 'The future belongs to those who believe in the beauty of their dreams.',
+      author: 'Eleanor Roosevelt',
+    },
+    consistency: {
+      text: 'Success is the sum of small efforts, repeated day in and day out.',
+      author: 'Robert Collier',
+    },
+    love: {
+      text: 'Where there is love there is life.',
+      author: 'Mahatma Gandhi',
+    },
+    wisdom: {
+      text: 'The only true wisdom is in knowing you know nothing.',
+      author: 'Socrates',
+    },
+    focus: {
+      text: 'Concentrate all your thoughts upon the work at hand.',
+      author: 'Elbert Hubbard',
+    },
+  },
+  tamil: {
+    drive: {
+      text: 'முனைப்பே வெற்றியின் பாதையைத் திறக்கும் சக்தி.',
+      author: 'அப்துல் கலாம்',
+    },
+    uplift: {
+      text: 'உன்னை நீ நம்பினால், உன்னை உலகம் நம்பும்.',
+      author: 'பகவத் கீதை',
+    },
+    consistency: {
+      text: 'நிலைத்தன்மை தான் வெற்றியின் அமைதியான ஆயுதம்.',
+      author: 'சிவானந்தர்',
+    },
+    love: {
+      text: 'அன்பே உயிர்கள் பேசும் உண்மையான மொழி.',
+      author: 'சுப்பிரமணிய பாரதி',
+    },
+    wisdom: {
+      text: 'ஞானம் என்பது அனுபவத்தின் மூலம் வருகின்ற புதையல்.',
+      author: 'திருவள்ளுவர்',
+    },
+    focus: {
+      text: 'கவனம் என்பது வெற்றியின் திறவுகோல்.',
+      author: 'புத்தர்',
+    },
+  },
+};
 
 const tabs = [
   { id: 'timer', label: 'Timer & Notification', icon: Bell },
   { id: 'theme', label: 'Theme', icon: Palette },
-  { id: 'quotes', label: 'Quotes', icon: Quote },
+  { id: 'quotes', label: 'Proverbs', icon: Quote },
   { id: 'clock', label: 'Clock', icon: Watch },
   { id: 'account', label: 'Account', icon: User },
   { id: 'music', label: 'Music', icon: Music },
@@ -106,7 +176,19 @@ export default memo(function SettingsPanel({
   defaultLongBreak,
   onDefaultLongBreakChange,
   currentTaskDuration,
+  onMusicSelect,
+  musicCategoryResetSignal,
+  quotesEnabled,
+  onQuotesEnabledChange,
+  quoteLanguage,
+  onQuoteLanguageChange,
+  selectedQuoteCategory,
+  onSelectedQuoteCategoryChange,
 }: SettingsPanelProps) {
+  const resolvedQuoteLanguage: 'english' | 'tamil' = quoteLanguage ?? 'english';
+  const resolvedQuoteCategory: QuoteCategory =
+    selectedQuoteCategory ?? 'drive';
+  const previewQuote = QUOTE_CONTENT[resolvedQuoteLanguage][resolvedQuoteCategory];
   const [activeTab, setActiveTab] = useState('timer');
   const [isExpanded, setIsExpanded] = useState(false);
   const [autoStartBreaks, setAutoStartBreaks] = useState(true);
@@ -208,15 +290,19 @@ export default memo(function SettingsPanel({
     fetchTracks();
   }, []);
 
+  useEffect(() => {
+    if (!musicCategoryResetSignal) return;
+    setSelectedCategory('all');
+  }, [musicCategoryResetSignal]);
+
   const handlePreviewToggle = useCallback(async (track: Track) => {
-    const isThisPlaying = selectedMusic?.id === track.id && isPlaying;
-    if (isThisPlaying) {
-      pause();
+    if (onMusicSelect) {
+      console.log('🎵 Settings music selection:', track.name);
+      onMusicSelect(track);
     } else {
-      await setMusic(track.id);
-      play();
+      console.log('🎵 No onMusicSelect callback provided');
     }
-  }, [selectedMusic, isPlaying, setMusic, play, pause]);
+  }, [onMusicSelect]);
 
   const categoryFilters: { label: string; value: 'all' | 'study' | 'calm' | 'happy' | 'positive' | 'ambience' }[] = [
     { label: 'All', value: 'all' },
@@ -320,7 +406,7 @@ export default memo(function SettingsPanel({
         </div>
 
         {/* Content */}
-        <div className="relative z-10 flex-1 overflow-y-auto p-6">
+        <div className="settings-scrollbar relative z-10 flex-1 overflow-y-auto p-6">
           {activeTab === 'timer' && (
             <div className="space-y-6">
               {/* SECTION 1: Timer Configuration */}
@@ -660,23 +746,25 @@ export default memo(function SettingsPanel({
 
           {activeTab === 'quotes' && (
             <div className="space-y-6">
-              <h3 className="text-lg font-semibold text-white">Quote Settings</h3>
+              <h3 className="text-lg font-semibold text-white">Proverb Settings</h3>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
-                    Quote Display
-                  </label>
-                  <select className={selectClass}>
-                    <option value="random">Random quotes</option>
-                    <option value="motivational">Motivational only</option>
-                    <option value="custom">Custom quotes</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="flex items-center">
-                    <input type="checkbox" className="mr-3" defaultChecked />
-                    <span className="text-sm text-white/80">Show quotes during breaks</span>
-                  </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">
+                      Proverb Display
+                    </label>
+                    <select className={selectClass}>
+                      <option value="random">Random proverbs</option>
+                      <option value="motivational">Motivational only</option>
+                      <option value="custom">Custom proverbs</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="flex items-center">
+                      <input type="checkbox" className="mr-3" defaultChecked />
+                      <span className="text-sm text-white/80">Show proverbs during breaks</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -820,6 +908,119 @@ export default memo(function SettingsPanel({
                         ))}
                       </div>
                     )}
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'quotes' && (
+            <div className="space-y-6">
+              <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-5">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/20">
+                    <Quote className="h-4 w-4 text-rose-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Proverbs</h3>
+                    <p className="text-xs text-white/50">Display inspirational proverbs in your play area</p>
+                  </div>
+                </div>
+
+                {/* Proverbs On/Off Toggle */}
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-white">Show Proverbs</p>
+                    <p className="text-xs text-white/50">Display proverbs during focus sessions</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={quotesEnabled}
+                    onClick={() => onQuotesEnabledChange?.(!quotesEnabled)}
+                    className={`relative flex h-6 w-11 items-center rounded-full border border-white/15 px-0.5 transition ${quotesEnabled ? 'bg-gradient-to-r from-rose-400/70 to-pink-400/70' : 'bg-white/5'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${quotesEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {/* Language Selection */}
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-white/80">Language</p>
+                    <p className="text-xs text-white/50">Choose the language for your proverbs</p>
+                  </div>
+                  <div className="inline-flex rounded-lg border border-white/20 bg-black/30 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => onQuoteLanguageChange?.('english')}
+                      className={`rounded-md px-4 py-2 text-sm font-medium transition ${quoteLanguage === 'english' ? 'bg-rose-500/80 text-white shadow' : 'text-white/60 hover:text-white/80'}`}
+                    >
+                      English
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onQuoteLanguageChange?.('tamil')}
+                      className={`rounded-md px-4 py-2 text-sm font-medium transition ${quoteLanguage === 'tamil' ? 'bg-rose-500/80 text-white shadow' : 'text-white/60 hover:text-white/80'}`}
+                    >
+                      தமிழ் (Tamil)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Proverb Category Selection (show for both languages) */}
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-white/80">Category</p>
+                    <p className="text-xs text-white/50">Select the type of proverbs to display</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(quoteLanguage === 'tamil' ? [
+                      { value: 'drive' as const, label: 'முனைப்பு', english: 'Drive' },
+                      { value: 'uplift' as const, label: 'உயர்வு', english: 'Uplift' },
+                      { value: 'consistency' as const, label: 'நிலைத்தன்மை', english: 'Consistency' },
+                      { value: 'love' as const, label: 'அன்பு', english: 'Love' },
+                      { value: 'wisdom' as const, label: 'ஞானம்', english: 'Wisdom' },
+                      { value: 'focus' as const, label: 'கவனம்', english: 'Focus' },
+                    ] : [
+                      { value: 'drive' as const, label: 'Drive', english: 'Drive' },
+                      { value: 'uplift' as const, label: 'Uplift', english: 'Uplift' },
+                      { value: 'consistency' as const, label: 'Consistency', english: 'Consistency' },
+                      { value: 'love' as const, label: 'Love', english: 'Love' },
+                      { value: 'wisdom' as const, label: 'Wisdom', english: 'Wisdom' },
+                      { value: 'focus' as const, label: 'Focus', english: 'Focus' },
+                    ]).map((category) => (
+                      <button
+                        key={category.value}
+                        type="button"
+                        onClick={() => onSelectedQuoteCategoryChange?.(category.value)}
+                        className={`inline-flex min-w-[110px] flex-col items-center rounded-md border px-3 py-1.5 text-[11px] font-medium transition ${
+                          selectedQuoteCategory === category.value
+                            ? 'border-rose-400 bg-rose-500/20 text-rose-300'
+                            : 'border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white'
+                        }`}
+                      >
+                        <span className="text-white/90 font-semibold leading-tight">{category.label}</span>
+                        {quoteLanguage === 'tamil' && (
+                          <span className="text-[9px] text-white/50 leading-tight">{category.english}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quote Preview */}
+                <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4">
+                  <h4 className="mb-3 text-sm font-medium text-white">Preview</h4>
+                  <div className="rounded-lg border border-rose-400/30 bg-rose-500/10 p-4">
+                    <blockquote className="text-center">
+                      <p className="text-sm font-medium text-white/90 italic">
+                        {previewQuote.text}
+                      </p>
+                      <cite className="mt-2 block text-xs text-white/60">
+                        — {previewQuote.author}
+                      </cite>
+                    </blockquote>
                   </div>
                 </div>
               </section>

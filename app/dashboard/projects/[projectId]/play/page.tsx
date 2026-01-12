@@ -51,6 +51,11 @@ import Toast from '@/components/playarea/Toast';
 
 import SettingsPanel, { type TimerMode, type StayOnTaskFallback, type SettingsTabId, type PomodoroDurationMode } from '@/components/playarea/SettingsPanel';
 import { useTheme } from '@/hooks/useTheme';
+import { isLightTheme, getCurrentTheme } from '@/utils/themeHelpers';
+
+import ProverbDisplay from '@/components/playarea/ProverbDisplay';
+import SpotifyEmbed from '@/components/playarea/SpotifyEmbed';
+import SpotifyGuidanceWidget from '@/components/playarea/SpotifyGuidanceWidget';
 
 const MODE_CONFIG = {
   focus: 25 * 60,
@@ -63,6 +68,10 @@ const DEFAULT_THEME_COLORS = {
   panel: 'rgba(8,11,22,0.9)',
   border: 'rgba(255,255,255,0.08)',
   chip: 'rgba(255,255,255,0.08)',
+  lightSurface: 'radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.95), rgba(244, 247, 254, 0.8))',
+  lightPanel: 'rgba(255, 255, 255, 0.8)',
+  lightBorder: 'rgba(2, 6, 23, 0.12)',
+  lightChip: 'rgba(255, 255, 255, 0.9)',
 };
 
 const MIN_TIMER_SECONDS = 30;
@@ -201,7 +210,7 @@ const calculateStreakFromHistory = async (
   
   // Log all dates with activity
   console.log('🔍 DEBUG: All dates with activity:');
-  sorted.forEach(record => {
+  sorted.forEach((record: any) => {
     console.log(`  ${record.date}: ${record.focus_sessions} sessions`);
   });
 
@@ -224,9 +233,9 @@ const calculateStreakFromHistory = async (
 
   // 3. Calculate CURRENT streak (streak ending today, including today)
   let currentStreak = 0;
-  const todayRecord = sorted.find(r => r.date === today);
+  const todayRecord = sorted.find((r: any) => r.date === today);
   
-  console.log('🔍 DEBUG: Today record check:', {
+  console.log(' DEBUG: Today record check:', {
     today,
     todayRecord: todayRecord ? {
       date: todayRecord.date,
@@ -503,6 +512,32 @@ export default function ProjectPlayAreaPage() {
           
           return newStats;
         });
+        
+        // Accumulate long break time if this was a long break
+        if (prevModeRef.current === 'long') {
+          console.log('⏰ Long break completed! Accumulating long break time');
+          
+          // Calculate time spent on this long break (in minutes)
+          const longBreakDuration = getLongBreakDuration() / 60; // Convert seconds to minutes
+          
+          setDailyStats(prev => {
+            const newStats = {
+              ...prev,
+              longBreakTime: (prev.longBreakTime || 0) + longBreakDuration,
+            };
+            
+            if (typeof window !== 'undefined') {
+              window.localStorage.setItem(
+                `${DAILY_STATS_STORAGE_KEY}_${getTodayKey()}`,
+                JSON.stringify(newStats)
+              );
+            }
+            
+            return newStats;
+          });
+          
+          console.log(`📈 Long break time accumulated: +${longBreakDuration} minutes`);
+        }
       }
     }
     
@@ -531,6 +566,22 @@ export default function ProjectPlayAreaPage() {
   const activeWallpaper = themeWallpaper ?? theme?.wallpaper_url ?? null;
   const hasActiveWallpaper = Boolean(activeWallpaper);
 
+  // Track if current theme is light for conditional styling
+  const [isLight, setIsLight] = useState(false);
+
+  useEffect(() => {
+    const checkTheme = () => {
+      const currentTheme = getCurrentTheme();
+      setIsLight(isLightTheme(currentTheme));
+    };
+
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     if (theme?.wallpaper_url && themeWallpaper !== theme.wallpaper_url) {
       setThemeWallpaper(theme.wallpaper_url);
@@ -538,29 +589,91 @@ export default function ProjectPlayAreaPage() {
   }, [theme?.wallpaper_url, themeWallpaper]);
 
   const layoutStyle = useMemo(() => {
-    const style = {
-      backgroundColor: hasActiveWallpaper ? 'transparent' : themeColors.surface,
-      backgroundImage: hasActiveWallpaper ? `url(${activeWallpaper})` : undefined,
-      backgroundSize: hasActiveWallpaper ? 'cover' : undefined,
-      backgroundPosition: hasActiveWallpaper ? 'center' : undefined,
+    if (hasActiveWallpaper) {
+      return {
+        backgroundColor: 'transparent',
+        backgroundImage: `url(${activeWallpaper})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        color: isLight ? '#0B1220' : undefined,
+      };
+    }
+
+    if (isLight) {
+      return {
+        backgroundColor: '#f8fafc',
+        backgroundImage: `${themeColors.lightSurface}, radial-gradient(circle at 80% 0%, rgba(226, 232, 240, 0.6), transparent 55%), radial-gradient(circle at 20% 100%, rgba(210, 214, 255, 0.35), transparent 60%)`,
+        backgroundBlendMode: 'soft-light, normal',
+        color: '#0B1220',
+      };
+    }
+
+    return {
+      backgroundColor: themeColors.surface,
+      backgroundImage: 'radial-gradient(circle at top, rgba(15, 23, 42, 0.55), transparent 55%)',
+      color: '#ffffff',
     };
-    return style;
-  }, [hasActiveWallpaper, themeColors.surface, activeWallpaper, themeWallpaper, theme?.wallpaper_url]);
+  }, [hasActiveWallpaper, themeColors.surface, themeColors.lightSurface, activeWallpaper, isLight]);
 
-  const panelStyle = useMemo(() => ({
-    backgroundColor: hasActiveWallpaper ? 'transparent' : themeColors.panel,
-    borderColor: themeColors.border,
-  }), [hasActiveWallpaper, themeColors.panel, themeColors.border]);
+  const panelStyle = useMemo(() => {
+    if (hasActiveWallpaper) {
+      return {
+        backgroundColor: 'transparent',
+        borderColor: isLight ? themeColors.lightBorder : themeColors.border,
+      };
+    }
 
-  const timerStyle = useMemo(() => ({
-    backgroundColor: hasActiveWallpaper ? 'rgba(0,0,0,0.3)' : themeColors.panel,
-    borderColor: themeColors.border,
-  }), [hasActiveWallpaper, themeColors.panel, themeColors.border]);
+    if (isLight) {
+      return {
+        backgroundColor: themeColors.lightPanel,
+        borderColor: themeColors.lightBorder,
+        boxShadow: '0 24px 45px rgba(15, 23, 42, 0.08)',
+      };
+    }
 
-  const chipStyle = useMemo(() => ({
-    backgroundColor: themeColors.chip,
-    borderColor: themeColors.border,
-  }), [themeColors.chip, themeColors.border]);
+    return {
+      backgroundColor: themeColors.panel,
+      borderColor: themeColors.border,
+    };
+  }, [hasActiveWallpaper, isLight, themeColors.panel, themeColors.border, themeColors.lightPanel, themeColors.lightBorder]);
+
+  const timerStyle = useMemo(() => {
+    if (hasActiveWallpaper) {
+      return {
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        borderColor: isLight ? themeColors.lightBorder : themeColors.border,
+      };
+    }
+
+    if (isLight) {
+      return {
+        backgroundColor: 'rgba(255,255,255,0.85)',
+        borderColor: themeColors.lightBorder,
+        boxShadow: '0 25px 55px rgba(15,23,42,0.12)',
+      };
+    }
+
+    return {
+      backgroundColor: themeColors.panel,
+      borderColor: themeColors.border,
+    };
+  }, [hasActiveWallpaper, isLight, themeColors.panel, themeColors.border, themeColors.lightBorder]);
+
+  const chipStyle = useMemo(() => {
+    if (isLight) {
+      return {
+        backgroundColor: themeColors.lightChip,
+        borderColor: themeColors.lightBorder,
+        color: 'var(--text-primary, #0B1220)',
+        boxShadow: 'var(--glass-shadow-1, 0 8px 32px rgba(31, 38, 135, 0.12)), var(--glass-shadow-2, 0 2px 8px rgba(31, 38, 135, 0.08))',
+      };
+    }
+    return {
+      backgroundColor: themeColors.chip,
+      borderColor: themeColors.border,
+      color: '#ffffff',
+    };
+  }, [isLight, themeColors.chip, themeColors.border, themeColors.lightChip, themeColors.lightBorder]);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [initialMouse, setInitialMouse] = useState({ x: 0, y: 0 });
@@ -667,8 +780,10 @@ export default function ProjectPlayAreaPage() {
   const [stayOnTaskModeSelected, setStayOnTaskModeSelected] = useState(false);
   const [stayOnTaskFallback, setStayOnTaskFallback] = useState<StayOnTaskFallback>('focused');
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('timer');
+  const [externalTrackSelect, setExternalTrackSelect] = useState<any>(null);
   const [settingsTabFocusSignal, setSettingsTabFocusSignal] = useState(0);
   const [alertSectionFocusSignal, setAlertSectionFocusSignal] = useState(0);
+  const [musicCategoryResetSignal, setMusicCategoryResetSignal] = useState(0);
   const [selectedAlertTaskId, setSelectedAlertTaskId] = useState<string | null>(null);
   const [pomodoroDurationMode, setPomodoroDurationMode] = useState<PomodoroDurationMode>('default');
   const [countdownMinutes, setCountdownMinutes] = useState(25);
@@ -681,6 +796,22 @@ export default function ProjectPlayAreaPage() {
   const DEFAULT_FOCUS_MINUTES = 25;
   const DEFAULT_SHORT_BREAK_MINUTES = 5;
   const DEFAULT_LONG_BREAK_MINUTES = 10;
+
+  // Quote settings state
+  const [quotesEnabled, setQuotesEnabled] = useState<boolean>(true);
+  const [quoteLanguage, setQuoteLanguage] = useState<'english' | 'tamil'>('english');
+  const [selectedQuoteCategory, setSelectedQuoteCategory] = useState<'drive' | 'uplift' | 'consistency' | 'love' | 'wisdom' | 'focus'>('drive');
+
+  // Spotify guidance widget state - initialize to false to avoid hydration mismatch
+  const [showSpotifyGuidance, setShowSpotifyGuidance] = useState<boolean>(false);
+
+  // Check localStorage after mount to avoid hydration issues
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const dismissed = localStorage.getItem('spotify-guidance-dismissed');
+      setShowSpotifyGuidance(dismissed !== 'true');
+    }
+  }, []);
 
   const [defaultFocusDuration, setDefaultFocusDuration] = useState(DEFAULT_FOCUS_MINUTES);
   const [defaultShortBreak, setDefaultShortBreak] = useState(DEFAULT_SHORT_BREAK_MINUTES);
@@ -708,30 +839,12 @@ export default function ProjectPlayAreaPage() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
 
-  // Save alertsEnabled state to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window !== 'undefined' && projectId) {
-      window.localStorage.setItem(`alertsEnabled_${projectId}`, String(alertsEnabled));
-    }
-  }, [alertsEnabled, projectId]);
+  // Clear external track selection after it's been handled
+  const clearExternalTrackSelect = useCallback(() => {
+    console.log('🎵 Clearing external track selection');
+    setExternalTrackSelect(null);
+  }, []); // Always include externalTrackSelect in dependency array
 
-  // Alert user when closing the app about focus alerts being disabled
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (alertsEnabled) {
-        const message = 'Your focus alert settings will be disabled. Please remember to enable them on your next login for a fresh start!';
-        e.preventDefault();
-        e.returnValue = message;
-        return message;
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [alertsEnabled]);
 
   // Handle frequency change confirmation dialog responses
   const handleFrequencyConfirm = useCallback((applyImmediately: boolean) => {
@@ -924,6 +1037,7 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
     breakTime: 0,
     deviationTime: 0,
     focusTime: 0,
+    longBreakTime: 0,
   }));
 
   const [sessionRecords, setSessionRecords] = useState<SessionRecord[]>([]);
@@ -1290,6 +1404,7 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
             date: getTodayKey(),
             currentStreak: streaks.currentStreak,
             longestStreak: streaks.longestStreak,
+            long_break_time: dailyStats.longBreakTime || 0,
           }),
         }).catch(error => console.error('❌ Failed to sync streak:', error));
       } catch (error) {
@@ -1462,21 +1577,52 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
     
     // Transition to next phase
     if (mode === 'focus') {
-      // After focus session, go to short break but keep the task for reference
-      console.log('🔄 Transitioning from FOCUS to SHORT BREAK');
-      setSessionPhase('break');
-      setMode('short');
-      const newDuration = getShortBreakDuration();
-      setSessionDuration(newDuration);
-      setTimeLeft(newDuration);
-      setTimeInput(formatSecondsToInput(newDuration));
-      console.log('⏰ Starting short break with duration:', newDuration, 'seconds');
-      setSessionStartTime(null); // Reset to prevent break time from being tracked
-      setIsRunning(true);
-      setActiveControl('play');
+      // Check if it's time for a long break (every longBreakInterval focus sessions)
+      const isLongBreakTime = nextFocusSessionCount % longBreakInterval === 0;
+
+      if (isLongBreakTime) {
+        // After focus session, go to long break but keep the task for reference
+        console.log(`🔄 Transitioning from FOCUS to LONG BREAK (session ${nextFocusSessionCount}/${longBreakInterval})`);
+        setSessionPhase('break');
+        setMode('long');
+        const newDuration = getLongBreakDuration();
+        setSessionDuration(newDuration);
+        setTimeLeft(newDuration);
+        setTimeInput(formatSecondsToInput(newDuration));
+        console.log('⏰ Starting long break with duration:', newDuration, 'seconds');
+        setSessionStartTime(null); // Reset to prevent break time from being tracked
+        setIsRunning(true);
+        setActiveControl('play');
+      } else {
+        // After focus session, go to short break but keep the task for reference
+        console.log(`🔄 Transitioning from FOCUS to SHORT BREAK (session ${nextFocusSessionCount}/${longBreakInterval})`);
+        setSessionPhase('break');
+        setMode('short');
+        const newDuration = getShortBreakDuration();
+        setSessionDuration(newDuration);
+        setTimeLeft(newDuration);
+        setTimeInput(formatSecondsToInput(newDuration));
+        console.log('⏰ Starting short break with duration:', newDuration, 'seconds');
+        setSessionStartTime(null); // Reset to prevent break time from being tracked
+        setIsRunning(true);
+        setActiveControl('play');
+      }
     } else if (mode === 'short') {
       // After short break, auto-start next focus session with the same task
       console.log('🔄 Transitioning from SHORT BREAK to FOCUS');
+      setSessionPhase('focus');
+      setMode('focus');
+      const upcomingFocusDuration = getFocusDuration();
+      setSessionDuration(upcomingFocusDuration);
+      setTimeLeft(upcomingFocusDuration);
+      setTimeInput(formatSecondsToInput(upcomingFocusDuration));
+      setSessionStartTime(new Date()); // Set fresh start time for new focus session
+      setAccumulatedSeconds(0); // Reset for new session
+      setIsRunning(true);
+      setActiveControl('play');
+    } else if (mode === 'long') {
+      // After long break, auto-start next focus session with the same task
+      console.log('🔄 Transitioning from LONG BREAK to FOCUS');
       setSessionPhase('focus');
       setMode('focus');
       const upcomingFocusDuration = getFocusDuration();
@@ -2265,6 +2411,12 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
           completedHours: dailyStats.hoursWorked,
           totalSessionTime: 0, // Will be calculated in main sync
           breakSessions: 0,
+          focused_alerts: dailyStats.focusedAlerts || 0,
+          deviated_alerts: dailyStats.deviatedAlerts || 0,
+          break_time: dailyStats.breakTime || 0,
+          deviation_time: dailyStats.deviationTime || 0,
+          focus_time: dailyStats.focusTime || 0,
+          long_break_time: dailyStats.longBreakTime || 0,
         }),
       });
 
@@ -2276,7 +2428,7 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
     }
 
     // Sync planned and completed hours for today
-    await syncDailyHoursToDB(getTodayKey());
+    await syncDailyHoursToDB({ dateKey: getTodayKey() });
   }, [projectId, boardTasks, dailyPomodoro.count, projectStats, dailyStats.hoursWorked, totalPlannedMinutes, syncDailyHoursToDB]);
 
   // Helper function to delete daily achievements for fresh start
@@ -2485,6 +2637,7 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
         break_time: dailyStats.breakTime || 0,
         deviation_time: dailyStats.deviationTime || 0,
         focus_time: dailyStats.focusTime || 0,
+        long_break_time: dailyStats.longBreakTime || 0,
         sessions: currentSessionRecords.filter(record => record.startTime.startsWith(today))
       };
 
@@ -2673,6 +2826,22 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [projectId, syncDailyAchievements]);
+
+  // Sync quietly when the page is being hidden (avoids repeated reload prompts)
+  useEffect(() => {
+    if (!projectId) return;
+
+    const handlePageHide = () => {
+      try {
+        void syncDailyAchievements(true);
+      } catch (error) {
+        console.error('Failed to sync on page hide:', error);
+      }
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+    return () => window.removeEventListener('pagehide', handlePageHide);
   }, [projectId, syncDailyAchievements]);
 
   // Sync on beforeunload (browser close/logout)
@@ -2975,7 +3144,11 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
       surface: hexToRgba(primary, 0.82),
       panel: hexToRgba(secondary, 0.88),
       border: hexToRgba('#ffffff', 0.08),
-      chip: hexToRgba(tertiary, 0.18),
+      chip: 'rgba(255,255,255,0.08)',
+      lightSurface: DEFAULT_THEME_COLORS.lightSurface,
+      lightPanel: 'rgba(255, 255, 255, 0.9)',
+      lightBorder: 'rgba(2, 6, 23, 0.1)',
+      lightChip: 'rgba(255, 255, 255, 0.95)',
     });
   };
 
@@ -3636,11 +3809,21 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
         <button
           type="button"
           onClick={() => router.push('/dashboard/home')}
-          className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10/80 px-4 py-2 text-sm font-semibold text-white shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:border-white/50 hover:bg-white/15"
+          title="Back"
+          className="inline-flex items-center justify-center rounded-full border p-2 text-sm font-semibold shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:scale-110"
+          style={isLight ? {
+            backgroundColor: 'var(--glass-surface, rgba(255, 255, 255, 0.55))',
+            borderColor: 'var(--glass-border, rgba(255, 255, 255, 0.45))',
+            color: 'var(--text-primary, #0B1220)',
+            boxShadow: 'var(--glass-shadow-1, 0 8px 32px rgba(31, 38, 135, 0.12)), var(--glass-shadow-2, 0 2px 8px rgba(31, 38, 135, 0.08))'
+          } : {
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            color: '#ffffff'
+          }}
           aria-label="Go back"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
         </button>
       </div>
 
@@ -3650,46 +3833,86 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
             <button
               type="button"
               onClick={() => setStatsOverlayOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10/80 px-5 py-2 text-sm font-semibold text-white shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:border-white/50 hover:bg-white/15"
+              title="Stats"
+              className="inline-flex items-center justify-center rounded-full border p-2 text-sm font-semibold shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:scale-110"
+              style={isLight ? {
+                backgroundColor: 'var(--glass-surface, rgba(255, 255, 255, 0.55))',
+                borderColor: 'var(--glass-border, rgba(255, 255, 255, 0.45))',
+                color: 'var(--text-primary, #0B1220)',
+                boxShadow: 'var(--glass-shadow-1, 0 8px 32px rgba(31, 38, 135, 0.12)), var(--glass-shadow-2, 0 2px 8px rgba(31, 38, 135, 0.08))'
+              } : {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                color: '#ffffff'
+              }}
               aria-label="View statistics"
             >
               <span className="text-base">📊</span>
-              Stats
             </button>
             <button
               type="button"
               onClick={() => setTaskBoardOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10/80 px-5 py-2 text-sm font-semibold text-white shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:border-white/50 hover:bg-white/15"
+              title="Task Board"
+              className="inline-flex items-center justify-center rounded-full border p-2 text-sm font-semibold shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:scale-110"
+              style={isLight ? {
+                backgroundColor: 'var(--glass-surface, rgba(255, 255, 255, 0.55))',
+                borderColor: 'var(--glass-border, rgba(255, 255, 255, 0.45))',
+                color: 'var(--text-primary, #0B1220)',
+                boxShadow: 'var(--glass-shadow-1, 0 8px 32px rgba(31, 38, 135, 0.12)), var(--glass-shadow-2, 0 2px 8px rgba(31, 38, 135, 0.08))'
+              } : {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                color: '#ffffff'
+              }}
               aria-label="Open task board"
             >
               <ListTodo className="h-4 w-4" />
-              Task board
             </button>
             <button
               type="button"
               onClick={() => setMusicDrawerOpen((prev) => !prev)}
-              className={`inline-flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-semibold text-white shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition ${
-                musicDrawerOpen
-                  ? 'border-emerald-300/60 bg-emerald-400/25'
-                  : 'border-white/20 bg-white/10/80 hover:border-white/50 hover:bg-white/15'
-              }`}
+              title="Player"
+              className="inline-flex items-center justify-center rounded-full border p-2 text-sm font-semibold shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:scale-110"
+              style={musicDrawerOpen ? {
+                borderColor: 'rgba(16, 185, 129, 0.6)',
+                backgroundColor: 'rgba(16, 185, 129, 0.25)',
+                color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff'
+              } : isLight ? {
+                backgroundColor: 'var(--glass-surface, rgba(255, 255, 255, 0.55))',
+                borderColor: 'var(--glass-border, rgba(255, 255, 255, 0.45))',
+                color: 'var(--text-primary, #0B1220)',
+                boxShadow: 'var(--glass-shadow-1, 0 8px 32px rgba(31, 38, 135, 0.12)), var(--glass-shadow-2, 0 2px 8px rgba(31, 38, 135, 0.08))'
+              } : {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                color: '#ffffff'
+              }}
               aria-label="Open media player"
             >
               <Music className="h-4 w-4" />
-              Player
             </button>
             <button
               type="button"
               onClick={() => setThemeDrawerOpen((prev) => !prev)}
-              className={`inline-flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-semibold text-white shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition ${
-                themeDrawerOpen
-                  ? 'border-violet-300/60 bg-violet-400/25'
-                  : 'border-white/20 bg-white/10/80 hover:border-white/50 hover:bg-white/15'
-              }`}
+              title="Theme"
+              className="inline-flex items-center justify-center rounded-full border p-2 text-sm font-semibold shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:scale-110"
+              style={themeDrawerOpen ? {
+                borderColor: 'rgba(139, 92, 246, 0.6)',
+                backgroundColor: 'rgba(139, 92, 246, 0.25)',
+                color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff'
+              } : isLight ? {
+                backgroundColor: 'var(--glass-surface, rgba(255, 255, 255, 0.55))',
+                borderColor: 'var(--glass-border, rgba(255, 255, 255, 0.45))',
+                color: 'var(--text-primary, #0B1220)',
+                boxShadow: 'var(--glass-shadow-1, 0 8px 32px rgba(31, 38, 135, 0.12)), var(--glass-shadow-2, 0 2px 8px rgba(31, 38, 135, 0.08))'
+              } : {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                color: '#ffffff'
+              }}
               aria-label="Open theme selector"
             >
               <Palette className="h-4 w-4" />
-              Theme
             </button>
             <button
               type="button"
@@ -3707,15 +3930,25 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                 }
                 setSettingsOpen(true);
               }}
-              className={`inline-flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-semibold text-white shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition ${
-                settingsOpen
-                  ? 'border-purple-300/60 bg-purple-400/25'
-                  : 'border-white/20 bg-white/10/80 hover:border-white/50 hover:bg-white/15'
-              }`}
+              title="Settings"
+              className="inline-flex items-center justify-center rounded-full border p-2 text-sm font-semibold shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:scale-110"
+              style={settingsOpen ? {
+                borderColor: 'rgba(168, 85, 247, 0.6)',
+                backgroundColor: 'rgba(168, 85, 247, 0.25)',
+                color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff'
+              } : isLight ? {
+                backgroundColor: 'var(--glass-surface, rgba(255, 255, 255, 0.55))',
+                borderColor: 'var(--glass-border, rgba(255, 255, 255, 0.45))',
+                color: 'var(--text-primary, #0B1220)',
+                boxShadow: 'var(--glass-shadow-1, 0 8px 32px rgba(31, 38, 135, 0.12)), var(--glass-shadow-2, 0 2px 8px rgba(31, 38, 135, 0.08))'
+              } : {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                color: '#ffffff'
+              }}
               aria-label="Open settings"
             >
               <Settings className="h-4 w-4" />
-              Settings
             </button>
           </div>
           {project && (
@@ -3773,12 +4006,25 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
         showBackgroundLayers={false}
         styleOverrides={layoutStyle}
         top={
-          <div className="space-y-6 text-white">
+          <div className="space-y-6" style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff' }}>
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-white/40">Play area</p>
-                <h1 className="font-heading mt-1 text-3xl font-semibold text-white">Deep focus mission</h1>
-                <p className="text-sm text-white/60">Select a planned mission and stay in rhythm.</p>
+              <div className="flex-1">
+                <p className="text-xs uppercase tracking-[0.35em]" style={{ color: isLight ? 'var(--text-tertiary, #64748B)' : 'rgba(255, 255, 255, 0.4)' }}>Play area</p>
+                {quotesEnabled ? (
+                  <div className="mt-2">
+                    <ProverbDisplay
+                      isEnabled={true}
+                      selectedCategory={selectedQuoteCategory}
+                      selectedLanguage={quoteLanguage}
+                      isLightTheme={isLight}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <h1 className="font-heading mt-1 text-3xl font-semibold" style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff' }}>Deep focus mission</h1>
+                    <p className="text-sm" style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.6)' }}>Select a planned mission and stay in rhythm.</p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -3788,14 +4034,14 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                   <div className="flex-1">
                     {sessionPhase === 'break' ? (
                       <>
-                        <p className="text-[10px] uppercase tracking-[0.45em] text-white/50" style={{ textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>Break Time</p>
+                        <p className="text-[10px] uppercase tracking-[0.45em]" style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.5)', textShadow: isLight ? 'none' : '0 0 4px rgba(0,0,0,0.8)' }}>Break Time</p>
                         <div className="mt-1 flex items-center gap-3">
-                          <h3 className="font-heading text-2xl font-semibold text-white" style={{ textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>
+                          <h3 className="font-heading text-2xl font-semibold" style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff', textShadow: isLight ? 'none' : '0 0 4px rgba(0,0,0,0.8)' }}>
                             Take a {mode === 'short' ? defaultShortBreak : defaultLongBreak}-minute break
                           </h3>
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-white/60" style={{ textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>
-                          <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-xs text-white/80">
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm" style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.6)', textShadow: isLight ? 'none' : '0 0 4px rgba(0,0,0,0.8)' }}>
+                          <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.15)', backgroundColor: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)', color: isLight ? 'var(--text-primary, #0B1220)' : 'rgba(255, 255, 255, 0.8)' }}>
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
                             Relax
                           </span>
@@ -3804,24 +4050,32 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                       </>
                     ) : (
                       <>
-                        <p className="text-[10px] uppercase tracking-[0.45em] text-white/50" style={{ textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>Current mission</p>
+                        <p className="text-[10px] uppercase tracking-[0.45em]" style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.5)', textShadow: isLight ? 'none' : '0 0 4px rgba(0,0,0,0.8)' }}>Current mission</p>
                         <div className="mt-1 flex items-center gap-3">
-                          <h3 className="font-heading text-2xl font-semibold text-white backdrop-blur-xl bg-white/10 border border-white/20 rounded-lg px-3 py-1" style={{ textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>
+                          <h3 className="font-heading text-2xl font-semibold backdrop-blur-xl border rounded-lg px-3 py-1" style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff', backgroundColor: isLight ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.1)', borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.2)', textShadow: isLight ? 'none' : '0 0 4px rgba(0,0,0,0.8)' }}>
                             {currentBoardTask ? currentBoardTask.title : 'No mission selected'}
                           </h3>
                           <button
                             type="button"
                             aria-label="Edit mission"
                             onClick={() => setTaskBoardOpen(true)}
-                            className={`inline-flex items-center justify-center text-white/70 transition hover:text-white`}
+                            className="inline-flex items-center justify-center transition"
+                            style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.7)' }}
                           >
                             <PenSquare className="h-4 w-4" />
                           </button>
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-white/60" style={{ textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm" style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.6)', textShadow: isLight ? 'none' : '0 0 4px rgba(0,0,0,0.8)' }}>
                           {currentBoardTask ? (
                             <>
-                              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-xs text-white/80">
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
+                                style={{
+                                  borderColor: isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.15)',
+                                  backgroundColor: isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.05)',
+                                  color: isLight ? 'var(--text-primary, #0B1220)' : 'rgba(255, 255, 255, 0.8)'
+                                }}
+                              >
                                 <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: selectedPriority?.color ?? '#a5f3fc' }}></span>
                                 {selectedPriority?.label ?? 'Planned'}
                               </span>
@@ -3834,30 +4088,53 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                       </>
                     )}
                   </div>
-                  <div className="flex flex-col items-end gap-3">
+                  <div className="flex flex-col items-end gap-3" style={{ color: isLight ? 'var(--text-primary, #0B1220)' : undefined }}>
                     <div
-                      className="inline-flex items-center gap-2 rounded-full border backdrop-blur-xl px-4 py-1.5 text-xs text-white/80"
+                      className="inline-flex items-center gap-2 rounded-full border backdrop-blur-xl px-4 py-1.5 text-xs"
                       style={chipStyle}
                     >
-                      <span className="text-[10px] uppercase tracking-[0.4em] text-white/50">Total planned</span>
-                      <span className="text-lg font-semibold text-white">{formatPlannedMinutes(totalPlannedMinutes)}</span>
+                      <span
+                        className="text-[10px] uppercase tracking-[0.4em]"
+                        style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.5)' }}
+                      >
+                        Total planned
+                      </span>
+                      <span
+                        className="text-lg font-semibold"
+                        style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff' }}
+                      >
+                        {formatPlannedMinutes(totalPlannedMinutes)}
+                      </span>
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap items-center gap-3 text-white/80">
+                <div
+                  className="mt-4 flex flex-wrap items-center gap-3"
+                  style={{ color: isLight ? 'var(--text-primary, #0B1220)' : 'rgba(255, 255, 255, 0.8)' }}
+                >
                   <div
                     className="inline-flex items-center gap-2 rounded-full border backdrop-blur-xl px-3 py-1.5 text-sm"
                     style={chipStyle}
                   >
                     <span className="text-lg drop-shadow-[0_5px_18px_rgba(248,250,109,0.55)]">⚡</span>
-                    <span className="text-base font-semibold text-white">{projectStats.currentStreak}</span>
+                    <span
+                      className="text-base font-semibold"
+                      style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff' }}
+                    >
+                      {projectStats.currentStreak}
+                    </span>
                   </div>
                   <div
                     className="inline-flex items-center gap-2 rounded-full border backdrop-blur-xl px-3 py-1.5 text-sm"
                     style={chipStyle}
                   >
                     <span className="text-lg drop-shadow-[0_5px_15px_rgba(45,212,191,0.45)]">⏱️</span>
-                    <span className="text-base font-semibold text-white">{dailyPomodoro.count}</span>
+                    <span
+                      className="text-base font-semibold"
+                      style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff' }}
+                    >
+                      {dailyPomodoro.count}
+                    </span>
                   </div>
                   <div
                     className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
@@ -3872,14 +4149,22 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                     {syncStatus === 'success' && <span className="text-lg">✅</span>}
                     {syncStatus === 'error' && <span className="text-lg">❌</span>}
                     {syncStatus === 'idle' && <span className="text-lg">💾</span>}
-                    <span className="text-xs uppercase tracking-[0.35em] text-white/50">
+                    <span
+                      className="text-xs uppercase tracking-[0.35em]"
+                      style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.5)' }}
+                    >
                       {syncStatus === 'syncing' ? 'Syncing' :
                        syncStatus === 'success' ? 'Synced' :
                        syncStatus === 'error' ? 'Sync Error' :
                        'Data Saved'}
                     </span>
                     {lastSyncTime && syncStatus === 'success' && (
-                      <span className="text-xs text-white/70">{lastSyncTime}</span>
+                      <span
+                        className="text-xs"
+                        style={{ color: isLight ? 'var(--text-tertiary, #64748B)' : 'rgba(255, 255, 255, 0.7)' }}
+                      >
+                        {lastSyncTime}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -3897,11 +4182,22 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                 }}
               >
                 <div
-                  className={`relative flex items-center justify-center rounded-full border p-6 shadow-[0_25px_60px_rgba(3,6,15,0.55)] ${theme?.wallpaper_url ? '' : 'backdrop-blur-2xl'}`}
-                  style={timerStyle}
+                  className={`relative flex items-center justify-center rounded-full border p-6 ${theme?.wallpaper_url ? '' : 'backdrop-blur-2xl'}`}
+                  style={isLight ? {
+                    backgroundColor: 'var(--timer-center-bg, rgba(255, 255, 255, 0.35))',
+                    borderColor: 'var(--timer-center-border, rgba(0, 0, 0, 0.1))',
+                    boxShadow: 'var(--glass-shadow-1, 0 8px 32px rgba(31, 38, 135, 0.12)), var(--glass-shadow-2, 0 2px 8px rgba(31, 38, 135, 0.08)), 0 0 0 1px rgba(255, 255, 255, 0.5) inset'
+                  } : timerStyle}
                 >
-                  <div className="absolute inset-0 rounded-full border border-white/10 opacity-40" />
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/10 via-white/5 to-transparent opacity-60" />
+                  {!isLight && (
+                    <>
+                      <div className="absolute inset-0 rounded-full border border-white/10 opacity-40" />
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/10 via-white/5 to-transparent opacity-60" />
+                    </>
+                  )}
+                  {isLight && (
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/40 via-white/20 to-transparent opacity-50" />
+                  )}
                   <div className="relative">
                     <TimerCircle
                       timeLeft={timeLeft}
@@ -3911,16 +4207,15 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                     />
                   </div>
                 </div>
-                <div className={`w-full max-w-sm ${theme?.wallpaper_url ? 'bg-gradient-to-b from-black/60 to-black/20 rounded-lg p-2' : ''}`}>
-                  <TimerControls
-                    isRunning={isRunning}
-                    activeControl={activeControl}
-                    onStart={handleStart}
-                    onPause={handlePause}
-                    onReset={handleReset}
-                    onAlertSettings={handleAlertSettingsOpen}
-                  />
-                </div>
+                <TimerControls
+                  isRunning={isRunning}
+                  activeControl={activeControl}
+                  onStart={handleStart}
+                  onPause={handlePause}
+                  onReset={handleReset}
+                  onAlertSettings={handleAlertSettingsOpen}
+                  isLightTheme={isLight}
+                />
               </div>
             </div>
           </div>
@@ -3956,8 +4251,21 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
       />
       <MediaPlayer
         open={showInterface && musicDrawerOpen}
-        onClose={() => setMusicDrawerOpen(false)}
+        onClose={() => {
+          console.log('🎵 onClose called from play page - musicDrawerOpen before:', musicDrawerOpen);
+          setMusicDrawerOpen(false);
+          console.log('🎵 onClose called from play page - musicDrawerOpen after: false');
+        }}
         positionClass="fixed right-6 top-40 lg:top-36 2xl:top-32"
+        externalTrackSelect={externalTrackSelect}
+        onExternalTrackProcessed={clearExternalTrackSelect}
+        onOpenSettingsMusic={() => {
+          console.log('🎵 Playlist icon clicked - opening Settings music tab');
+          setSettingsInitialTab('music');
+          setSettingsTabFocusSignal((prev) => prev + 1);
+          setMusicCategoryResetSignal((prev) => prev + 1);
+          setSettingsOpen(true);
+        }}
       />
       <ThemeDrawer
         open={showInterface && themeDrawerOpen}
@@ -3980,7 +4288,7 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
         isOpen={alertModalOpen}
         onResponse={handleAlertResponse}
         defaultResponse={alertConfig?.defaultResponse || 'focused'}
-        taskName={currentAlertTask?.name || 'Focus Task'}
+        taskName={currentAlertTask?.title || 'Focus Task'}
       />
       <StatsModal
         isOpen={statsOverlayOpen}
@@ -3991,6 +4299,27 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
         refreshStats={loadStats}
       />
       <Toast message={toastMessage} visible={toastVisible} />
+      {/* Spotify Embed Player */}
+      {showInterface && (
+        <>
+          <SpotifyEmbed
+            playlistId="37i9dQZF1DXcBWIGoYBM5M"
+            compact={true}
+          />
+          {showSpotifyGuidance && (
+            <SpotifyGuidanceWidget
+              onDismiss={() => {
+                setShowSpotifyGuidance(false);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('spotify-guidance-dismissed', 'true');
+                }
+              }}
+              isLightTheme={isLight}
+            />
+          )}
+        </>
+      )}
+
       {/* Floating control buttons */}
       <div className="fixed bottom-4 right-16 z-40 flex flex-col gap-2">
         <button
@@ -4002,14 +4331,21 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
         </button>
         {showInterface && (
           <button
-            onClick={() => document.documentElement.requestFullscreen()}
+            onClick={() => {
+              if (document.fullscreenElement) {
+                document.exitFullscreen();
+              } else {
+                document.documentElement.requestFullscreen();
+              }
+            }}
             className="rounded-full bg-black/50 p-2 text-white hover:bg-black/70 transition-colors"
-            aria-label="Enter fullscreen"
+            aria-label={typeof window !== 'undefined' && document.fullscreenElement ? "Exit fullscreen" : "Enter fullscreen"}
           >
             <Expand className="h-5 w-5" />
           </button>
         )}
       </div>
+
       {/* Frequency Change Confirmation Dialog */}
       {frequencyConfirmDialogOpen && pendingFrequencyChange && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center">
@@ -4111,6 +4447,18 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
         defaultLongBreak={defaultLongBreak}
         onDefaultLongBreakChange={setDefaultLongBreak}
         currentTaskDuration={currentTaskDuration}
+        onMusicSelect={(track) => {
+          console.log('🎵 Settings music selected:', track.name);
+          // Automatically show the media player whenever a track is selected from settings
+          setMusicDrawerOpen(true);
+          setExternalTrackSelect(track);
+        }}
+        quotesEnabled={quotesEnabled}
+        onQuotesEnabledChange={setQuotesEnabled}
+        quoteLanguage={quoteLanguage}
+        onQuoteLanguageChange={setQuoteLanguage}
+        selectedQuoteCategory={selectedQuoteCategory}
+        onSelectedQuoteCategoryChange={setSelectedQuoteCategory}
       />
       <Toast message={toastMessage} visible={toastVisible} />
     </div>

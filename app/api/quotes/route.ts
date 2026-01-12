@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const language = searchParams.get('language');
 
   try {
-    let query = supabase.from('quotes').select('*');
+    let query = supabase.from('proverbs').select('*');
 
     if (persona) query = query.eq('persona', persona);
     if (category) query = query.eq('category', category);
@@ -25,6 +25,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch quotes' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch proverbs' }, { status: 500 });
   }
 }

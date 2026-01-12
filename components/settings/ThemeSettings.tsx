@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { CSSProperties, useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, Image as ImageIcon, Palette, Upload, X } from 'lucide-react';
-import { generateWallpaperThumbnail, generateColorSchemeThumbnail } from '@/utils/generateThumbnail';
+import { generateWallpaperThumbnail } from '@/utils/generateThumbnail';
 import { useTheme } from '@/hooks/useTheme';
 
 interface Theme {
@@ -19,6 +19,16 @@ interface Theme {
   text_color?: string;
 }
 
+interface SpotlightPreset {
+  id: string;
+  name: string;
+  tone: 'Dark' | 'Light';
+  mood: string;
+  background: string;
+  corners: [string, string, string, string];
+  center: { inner: string; outer: string };
+}
+
 const CATEGORY_FILTERS = [
   { id: 'all', label: 'All Categories', matches: [] },
   { id: 'study-room', label: 'Study Room', matches: ['minimal', 'urban'] },
@@ -28,19 +38,160 @@ const CATEGORY_FILTERS = [
   { id: 'peace', label: 'Peace', matches: ['nature', 'abstract'] },
 ];
 
-const COLOR_SCHEMES = [
-  { id: 'light', name: 'Light', bg: '#ffffff', text: '#1f2937', primary: '#3b82f6', secondary: '#6366f1', accent: '#8b5cf6' },
-  { id: 'dark', name: 'Dark', bg: '#0f172a', text: '#f1f5f9', primary: '#3b82f6', secondary: '#6366f1', accent: '#8b5cf6' },
-  { id: 'auto', name: 'Auto', bg: '#f3f4f6', text: '#1f2937', primary: '#3b82f6', secondary: '#6366f1', accent: '#8b5cf6' },
+const DEFAULT_SPOTLIGHT_THEME = 'spotlight-nebula-noir';
+
+const BASE_THEMES = [
+  {
+    id: 'dark-mode',
+    name: 'Dark Mode',
+    description: 'Pure black focus arena',
+    bg: '#000000',
+    primary: '#7c3aed',
+    secondary: '#6366f1',
+    accent: '#8b5cf6',
+  },
+  {
+    id: 'spotlight-mode',
+    name: 'Spotlight Mode',
+    description: '10 premium lighting presets',
+    bg: '#05030d',
+    primary: '#6a50ff',
+    secondary: '#2dd4ff',
+    accent: '#fd6fff',
+  },
+];
+
+const COLOR_SCHEMES = BASE_THEMES;
+
+const SPOTLIGHT_PRESETS: SpotlightPreset[] = [
+  {
+    id: 'spotlight-nebula-noir',
+    name: 'Nebula Noir',
+    tone: 'Dark',
+    mood: 'Cosmic command center',
+    background: '#05030d',
+    corners: ['#6a50ff', '#2dd4ff', '#fd6fff', '#ffc857'],
+    center: { inner: '#f5f7ff', outer: '#080612' },
+  },
+  {
+    id: 'spotlight-obsidian-pulse',
+    name: 'Obsidian Pulse',
+    tone: 'Dark',
+    mood: 'Stealth energy',
+    background: '#04070b',
+    corners: ['#0cda9d', '#2dd4bf', '#a855f7', '#f4a261'],
+    center: { inner: '#d9fffb', outer: '#06060b' },
+  },
+  {
+    id: 'spotlight-crimson-eclipse',
+    name: 'Crimson Eclipse',
+    tone: 'Dark',
+    mood: 'Cinematic dusk',
+    background: '#120507',
+    corners: ['#b91c1c', '#ff8c42', '#7c3aed', '#2563eb'],
+    center: { inner: '#ffd8c2', outer: '#1b0505' },
+  },
+  {
+    id: 'spotlight-arctic-aurora',
+    name: 'Arctic Aurora',
+    tone: 'Dark',
+    mood: 'Icy calm',
+    background: '#030713',
+    corners: ['#38bdf8', '#a5f3fc', '#c4b5fd', '#64748b'],
+    center: { inner: '#e2f6ff', outer: '#050814' },
+  },
+  {
+    id: 'spotlight-sable-prism',
+    name: 'Sable Prism',
+    tone: 'Dark',
+    mood: 'Prismatic night',
+    background: '#03030a',
+    corners: ['#84cc16', '#f472b6', '#2563eb', '#f59e0b'],
+    center: { inner: '#f2f6ff', outer: '#05030a' },
+  },
+  {
+    id: 'spotlight-morning-glow',
+    name: 'Morning Spotlight',
+    tone: 'Light',
+    mood: 'Dawn energy',
+    background: '#fff5e7',
+    corners: ['#ffd7ba', '#ffef9f', '#ffb4a2', '#f4dada'],
+    center: { inner: '#ffffff', outer: '#f6eada' },
+  },
+  {
+    id: 'spotlight-pastel-studio',
+    name: 'Pastel Studio',
+    tone: 'Light',
+    mood: 'Creative hush',
+    background: '#f6f4fb',
+    corners: ['#c7d2fe', '#e9d5ff', '#bbf7d0', '#fecdd3'],
+    center: { inner: '#ffffff', outer: '#f1f5f9' },
+  },
+  {
+    id: 'spotlight-cloud-beam',
+    name: 'Cloud Beam',
+    tone: 'Light',
+    mood: 'Airy focus',
+    background: '#f8fbff',
+    corners: ['#bae6fd', '#e2e8f0', '#ddd6fe', '#c8f7ef'],
+    center: { inner: '#ffffff', outer: '#edf2fb' },
+  },
+  {
+    id: 'spotlight-golden-hour',
+    name: 'Golden Hour',
+    tone: 'Light',
+    mood: 'Sunset spark',
+    background: '#fff3dc',
+    corners: ['#fbbf24', '#f97316', '#fda4af', '#facc15'],
+    center: { inner: '#fff9ef', outer: '#f9e5c3' },
+  },
+  {
+    id: 'spotlight-minimal-veil',
+    name: 'Minimal Veil',
+    tone: 'Light',
+    mood: 'Gallery calm',
+    background: '#f7f7f4',
+    corners: ['#d4d4d8', '#a8a29e', '#e4e4e7', '#f5f5f4'],
+    center: { inner: '#ffffff', outer: '#ececec' },
+  },
+  {
+    id: 'spotlight-royal-porcelain',
+    name: 'Royal Porcelain',
+    tone: 'Light',
+    mood: 'Regal sophistication',
+    background: '#f8f7fc',
+    corners: ['#5b21b6', '#3b82f6', '#c4b5fd', '#e0e7ff'],
+    center: { inner: '#fdfcff', outer: '#f3f2f9' },
+  },
+  {
+    id: 'spotlight-pearl-aurora',
+    name: 'Pearl Aurora',
+    tone: 'Light',
+    mood: 'Ethereal shimmer',
+    background: '#f0f9ff',
+    corners: ['#06b6d4', '#8b5cf6', '#e0e7ff', '#ccfbf1'],
+    center: { inner: '#ffffff', outer: '#e5f6fc' },
+  },
+  {
+    id: 'spotlight-champagne-silk',
+    name: 'Champagne Silk',
+    tone: 'Light',
+    mood: 'Luxe warmth',
+    background: '#fef8f3',
+    corners: ['#be185d', '#d97706', '#fbbf24', '#f9a8d4'],
+    center: { inner: '#fffcf8', outer: '#fceee0' },
+  },
 ];
 
 export default function ThemeSettings() {
   const [themes, setThemes] = useState<Theme[]>([]);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
-  const [selectedColorScheme, setSelectedColorScheme] = useState('auto');
+  const [selectedColorScheme, setSelectedColorScheme] = useState('dark-mode');
+  const [selectedSpotlightPreset, setSelectedSpotlightPreset] = useState(DEFAULT_SPOTLIGHT_THEME);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [spotlightExpanded, setSpotlightExpanded] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadName, setUploadName] = useState('');
@@ -50,6 +201,20 @@ export default function ThemeSettings() {
 
   useEffect(() => {
     fetchThemes();
+  }, []);
+
+  useEffect(() => {
+    console.log('[ThemeSettings] useEffect - Loading saved theme');
+    const saved = localStorage.getItem('color-scheme-theme') || 'dark-mode';
+    console.log('[ThemeSettings] Loaded from localStorage:', saved);
+    
+    // Check if it's a spotlight preset
+    if (saved.startsWith('spotlight-')) {
+      setSelectedSpotlightPreset(saved);
+      setSelectedColorScheme('spotlight-mode');
+    } else {
+      setSelectedColorScheme(saved);
+    }
   }, []);
 
   useEffect(() => {
@@ -159,6 +324,32 @@ export default function ThemeSettings() {
     }
   };
 
+  const handleColorSchemeSelection = (schemeId: string) => {
+    console.log('[ThemeSettings] handleColorSchemeSelection called with:', schemeId);
+    setSelectedColorScheme(schemeId);
+    
+    if (schemeId === 'spotlight-mode') {
+      // Use the currently selected spotlight preset
+      const themeToApply = selectedSpotlightPreset;
+      localStorage.setItem('color-scheme-theme', themeToApply);
+      document.documentElement.setAttribute('data-theme', themeToApply);
+      console.log('[ThemeSettings] Applied spotlight preset:', themeToApply);
+    } else {
+      localStorage.setItem('color-scheme-theme', schemeId);
+      document.documentElement.setAttribute('data-theme', schemeId);
+      console.log('[ThemeSettings] Applied base theme:', schemeId);
+    }
+  };
+
+  const handleSpotlightPresetSelection = (presetId: string) => {
+    console.log('[ThemeSettings] handleSpotlightPresetSelection called with:', presetId);
+    setSelectedSpotlightPreset(presetId);
+    setSelectedColorScheme('spotlight-mode');
+    localStorage.setItem('color-scheme-theme', presetId);
+    document.documentElement.setAttribute('data-theme', presetId);
+    console.log('[ThemeSettings] Spotlight preset applied:', presetId);
+  };
+
   const selectedWallpaper = themes.find((t) => t.id === selectedTheme);
 
   return (
@@ -175,36 +366,41 @@ export default function ThemeSettings() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {COLOR_SCHEMES.map((scheme) => {
             const isSelected = selectedColorScheme === scheme.id;
-            const thumbnail = generateColorSchemeThumbnail(
-              scheme.bg,
-              scheme.primary,
-              scheme.secondary,
-              scheme.accent
-            );
-            
             return (
               <button
                 key={scheme.id}
                 type="button"
-                onClick={() => setSelectedColorScheme(scheme.id)}
+                onClick={() => handleColorSchemeSelection(scheme.id)}
                 className={`group relative overflow-hidden rounded-xl border transition ${
                   isSelected
                     ? 'border-blue-400/70 bg-blue-400/10 ring-2 ring-blue-400/30'
                     : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
                 }`}
               >
-                <div className="aspect-video w-full">
-                  <img
-                    src={thumbnail}
-                    alt={scheme.name}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="p-2">
-                  <p className="text-sm font-medium text-white">{scheme.name}</p>
+                <div className="flex items-center gap-3 p-3">
+                  <div className="flex h-14 w-16 flex-col overflow-hidden rounded-lg border border-white/10">
+                    <div className="flex-1" style={{ backgroundColor: scheme.bg }} />
+                    <div className="flex h-4">
+                      <span className="flex-1" style={{ backgroundColor: scheme.primary }} />
+                      <span className="flex-1" style={{ backgroundColor: scheme.secondary }} />
+                    </div>
+                    <div className="h-2" style={{ backgroundColor: scheme.accent }} />
+                  </div>
+                  <div className="flex flex-1 flex-col">
+                    <p className="text-left text-sm font-medium text-white">{scheme.name}</p>
+                    <div className="mt-1 flex items-center gap-1">
+                      {[scheme.bg, scheme.primary, scheme.secondary, scheme.accent].map((color, idx) => (
+                        <span
+                          key={`${scheme.id}-color-${idx}`}
+                          className="h-4 w-4 rounded-full border border-white/20"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 {isSelected && (
                   <div className="absolute right-2 top-2 rounded-full bg-blue-500 p-1">
@@ -215,6 +411,69 @@ export default function ThemeSettings() {
             );
           })}
         </div>
+
+        {/* Spotlight Presets Section - Collapsible */}
+        {selectedColorScheme === 'spotlight-mode' && (
+          <div className="mt-4 space-y-3">
+            <button
+              type="button"
+              onClick={() => setSpotlightExpanded(!spotlightExpanded)}
+              className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white/80 hover:border-white/20 hover:bg-white/10 transition"
+            >
+              <span>Choose Preset ({SPOTLIGHT_PRESETS.length})</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${spotlightExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            {spotlightExpanded && (
+              <div className="grid grid-cols-5 gap-2">
+                {SPOTLIGHT_PRESETS.map((preset) => {
+                  const isPresetSelected = selectedSpotlightPreset === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleSpotlightPresetSelection(preset.id)}
+                      className={`group relative flex flex-col items-center gap-2 rounded-lg border p-2 transition ${
+                        isPresetSelected
+                          ? 'border-emerald-400/70 bg-emerald-400/10 ring-1 ring-emerald-400/30'
+                          : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                      }`}
+                      title={`${preset.name} - ${preset.mood}`}
+                    >
+                      <div className="relative h-12 w-12 overflow-hidden rounded-md border border-white/10">
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background: `
+                              radial-gradient(circle at 10% 10%, ${preset.corners[0]} 0%, transparent 50%),
+                              radial-gradient(circle at 90% 10%, ${preset.corners[1]} 0%, transparent 50%),
+                              radial-gradient(circle at 10% 90%, ${preset.corners[2]} 0%, transparent 50%),
+                              radial-gradient(circle at 90% 90%, ${preset.corners[3]} 0%, transparent 50%),
+                              radial-gradient(circle at 50% 50%, ${preset.center.inner} 0%, ${preset.center.outer} 100%)
+                            `,
+                            backgroundBlendMode: 'screen',
+                          }}
+                        />
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <p className="text-[10px] font-medium text-white">{preset.name}</p>
+                        <span className={`text-[8px] uppercase tracking-wider ${
+                          preset.tone === 'Dark' ? 'text-slate-400' : 'text-amber-300'
+                        }`}>
+                          {preset.tone}
+                        </span>
+                      </div>
+                      {isPresetSelected && (
+                        <div className="absolute -right-1 -top-1 rounded-full bg-emerald-500 p-0.5">
+                          <Check className="h-2.5 w-2.5 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Wallpaper Section */}

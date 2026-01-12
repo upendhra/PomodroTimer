@@ -138,6 +138,7 @@ export default function StatsPage() {
               daily: dailyStats,
               weekly: weeklyStats,
               monthly: monthlyStats,
+              yearly: null,
             }}
           />
         </motion.div>

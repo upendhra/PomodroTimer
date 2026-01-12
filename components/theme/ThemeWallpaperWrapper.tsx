@@ -14,6 +14,19 @@ export default function ThemeWallpaperWrapper({ theme, children }: ThemeWallpape
   const hasWallpaper = Boolean(backgroundImage);
   const [backgroundSize, setBackgroundSize] = useState<'cover' | 'contain'>('cover');
 
+  // Check if any Spotlight Mode preset is active - don't show wallpapers in this case
+  const currentTheme = typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : null;
+  const isSpotlightMode = currentTheme?.startsWith('spotlight-') || false;
+  const shouldShowWallpaper = hasWallpaper && !isSpotlightMode;
+
+  console.log('[ThemeWallpaperWrapper] Render:', {
+    hasWallpaper,
+    wallpaperUrl: theme?.wallpaper_url,
+    dataTheme: typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : 'SSR',
+    isSpotlightMode,
+    shouldShowWallpaper
+  });
+
   useEffect(() => {
     if (!theme?.wallpaper_url) {
       setBackgroundSize('cover');
@@ -44,12 +57,8 @@ export default function ThemeWallpaperWrapper({ theme, children }: ThemeWallpape
 
   return (
     <div className="relative min-h-screen">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div
-          className="absolute inset-0 bg-slate-950 transition-opacity duration-500"
-          style={{ opacity: hasWallpaper ? 0 : 1 }}
-        />
-        {hasWallpaper && (
+      {shouldShowWallpaper && (
+        <div className="pointer-events-none fixed inset-0 -z-10">
           <div
             className="absolute inset-0 bg-cover bg-center blur-[80px] transition-[opacity,transform,background-image] duration-500"
             style={{
@@ -58,17 +67,17 @@ export default function ThemeWallpaperWrapper({ theme, children }: ThemeWallpape
               transform: 'scale(1.05)',
             }}
           />
-        )}
-        <div
-          className="absolute inset-0 bg-center bg-no-repeat transition-[opacity,transform,background-image] duration-500"
-          style={{
-            backgroundImage,
-            opacity: hasWallpaper ? 1 : 0,
-            transform: 'scale(1)',
-            backgroundSize,
-          }}
-        />
-      </div>
+          <div
+            className="absolute inset-0 bg-center bg-no-repeat transition-[opacity,transform,background-image] duration-500"
+            style={{
+              backgroundImage,
+              opacity: 1,
+              transform: 'scale(1)',
+              backgroundSize,
+            }}
+          />
+        </div>
+      )}
       <div className="relative z-10">
         {children}
       </div>

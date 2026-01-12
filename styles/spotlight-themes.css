@@ -1,0 +1,467 @@
+/* Spotlight Theme Presets - 10 Premium Variations */
+
+/* Light Theme Typography & UI Tokens */
+[data-theme^="spotlight-morning-glow"],
+[data-theme^="spotlight-pastel-studio"],
+[data-theme^="spotlight-cloud-beam"],
+[data-theme^="spotlight-golden-hour"],
+[data-theme^="spotlight-minimal-veil"],
+[data-theme^="spotlight-royal-porcelain"],
+[data-theme^="spotlight-pearl-aurora"],
+[data-theme^="spotlight-champagne-silk"] {
+  --text-primary: #0B1220;
+  --text-secondary: #475569;
+  --text-tertiary: #64748B;
+  --text-on-accent: #ffffff;
+  
+  /* Glass surface tokens */
+  --glass-surface: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.45);
+  --glass-shadow-1: 0 8px 32px rgba(31, 38, 135, 0.12);
+  --glass-shadow-2: 0 2px 8px rgba(31, 38, 135, 0.08);
+  --glass-blur: 12px;
+}
+
+/* 1. Nebula Noir (Dark) */
+[data-theme="spotlight-nebula-noir"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background-color: #05030d;
+  overflow: hidden;
+}
+
+[data-theme="spotlight-nebula-noir"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(106, 80, 255, 0.55) 0%, rgba(106, 80, 255, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 96% 6%, rgba(45, 212, 255, 0.6) 0%, rgba(45, 212, 255, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 6% 94%, rgba(253, 111, 255, 0.55) 0%, rgba(253, 111, 255, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 94% 94%, rgba(255, 200, 87, 0.58) 0%, rgba(255, 200, 87, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(245, 247, 255, 0.12) 0%, rgba(8, 6, 18, 0.85) 65%, #080612 100%);
+  background-blend-mode: screen;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-nebula-noir"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 16vh 8vw 10vh 8vw;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  box-shadow: 0 0 180px 60px rgba(255, 255, 255, 0.04);
+  opacity: 0.4;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* 2. Obsidian Pulse (Dark) */
+[data-theme="spotlight-obsidian-pulse"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background-color: #04070b;
+  overflow: hidden;
+}
+
+[data-theme="spotlight-obsidian-pulse"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(12, 218, 157, 0.55) 0%, rgba(12, 218, 157, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 96% 6%, rgba(45, 212, 191, 0.6) 0%, rgba(45, 212, 191, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 6% 94%, rgba(168, 85, 247, 0.55) 0%, rgba(168, 85, 247, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 94% 94%, rgba(244, 162, 97, 0.58) 0%, rgba(244, 162, 97, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(217, 255, 251, 0.12) 0%, rgba(6, 6, 11, 0.85) 65%, #06060b 100%);
+  background-blend-mode: screen;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-obsidian-pulse"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 16vh 8vw 10vh 8vw;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  box-shadow: 0 0 180px 60px rgba(12, 218, 157, 0.06);
+  opacity: 0.4;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* 3. Crimson Eclipse (Dark) */
+[data-theme="spotlight-crimson-eclipse"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background-color: #120507;
+  overflow: hidden;
+}
+
+[data-theme="spotlight-crimson-eclipse"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(185, 28, 28, 0.55) 0%, rgba(185, 28, 28, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 96% 6%, rgba(255, 140, 66, 0.6) 0%, rgba(255, 140, 66, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 6% 94%, rgba(124, 58, 237, 0.55) 0%, rgba(124, 58, 237, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 94% 94%, rgba(37, 99, 235, 0.58) 0%, rgba(37, 99, 235, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 216, 194, 0.12) 0%, rgba(27, 5, 5, 0.85) 65%, #1b0505 100%);
+  background-blend-mode: screen;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-crimson-eclipse"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 16vh 8vw 10vh 8vw;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  box-shadow: 0 0 180px 60px rgba(185, 28, 28, 0.06);
+  opacity: 0.4;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* 4. Arctic Aurora (Dark) */
+[data-theme="spotlight-arctic-aurora"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background-color: #030713;
+  overflow: hidden;
+}
+
+[data-theme="spotlight-arctic-aurora"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(56, 189, 248, 0.55) 0%, rgba(56, 189, 248, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 96% 6%, rgba(165, 243, 252, 0.6) 0%, rgba(165, 243, 252, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 6% 94%, rgba(196, 181, 253, 0.55) 0%, rgba(196, 181, 253, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 94% 94%, rgba(100, 116, 139, 0.58) 0%, rgba(100, 116, 139, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(226, 246, 255, 0.12) 0%, rgba(5, 8, 20, 0.85) 65%, #050814 100%);
+  background-blend-mode: screen;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-arctic-aurora"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 16vh 8vw 10vh 8vw;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  box-shadow: 0 0 180px 60px rgba(165, 243, 252, 0.06);
+  opacity: 0.4;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* 5. Sable Prism (Dark) */
+[data-theme="spotlight-sable-prism"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background-color: #03030a;
+  overflow: hidden;
+}
+
+[data-theme="spotlight-sable-prism"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(132, 204, 22, 0.55) 0%, rgba(132, 204, 22, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 96% 6%, rgba(244, 114, 182, 0.6) 0%, rgba(244, 114, 182, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 6% 94%, rgba(37, 99, 235, 0.55) 0%, rgba(37, 99, 235, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 94% 94%, rgba(245, 158, 11, 0.58) 0%, rgba(245, 158, 11, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(242, 246, 255, 0.12) 0%, rgba(5, 3, 10, 0.85) 65%, #05030a 100%);
+  background-blend-mode: screen;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-sable-prism"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 16vh 8vw 10vh 8vw;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  box-shadow: 0 0 180px 60px rgba(132, 204, 22, 0.06);
+  opacity: 0.4;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* 6. Morning Spotlight (Light) - Royal Sunrise */
+[data-theme="spotlight-morning-glow"] {
+  --accent-1: #ff9800;
+  --accent-2: #ffc107;
+  --accent-glow: rgba(255, 193, 7, 0.25);
+  --timer-ring-start: #ff9800;
+  --timer-ring-end: #ffc107;
+  --timer-center-bg: rgba(255, 255, 255, 0.35);
+  --timer-center-border: rgba(255, 152, 0, 0.2);
+}
+
+[data-theme="spotlight-morning-glow"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background: linear-gradient(135deg, #fef3e2 0%, #fff8f0 50%, #fef5e7 100%);
+  overflow: hidden;
+}
+
+[data-theme="spotlight-morning-glow"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(255, 152, 0, 0.28) 0%, rgba(255, 152, 0, 0.08) 25%, transparent 50%),
+    radial-gradient(circle at 96% 6%, rgba(255, 193, 7, 0.32) 0%, rgba(255, 193, 7, 0.08) 25%, transparent 50%),
+    radial-gradient(circle at 6% 94%, rgba(255, 87, 34, 0.26) 0%, rgba(255, 87, 34, 0.08) 25%, transparent 50%),
+    radial-gradient(circle at 94% 94%, rgba(244, 143, 177, 0.3) 0%, rgba(244, 143, 177, 0.08) 25%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 248, 225, 0.6) 0%, rgba(255, 243, 224, 0.3) 40%, transparent 70%);
+  background-blend-mode: soft-light;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-morning-glow"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 18vh 10vw 12vh 10vw;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 235, 205, 0.15) 0%, transparent 70%);
+  box-shadow: 0 0 200px 80px rgba(255, 193, 7, 0.08);
+  opacity: 0.6;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* 7. Pastel Studio (Light) - Lavender Dreams */
+[data-theme="spotlight-pastel-studio"] {
+  --accent-1: #7c3aed;
+  --accent-2: #a78bfa;
+  --accent-glow: rgba(167, 139, 250, 0.25);
+  --timer-ring-start: #7c3aed;
+  --timer-ring-end: #a78bfa;
+  --timer-center-bg: rgba(255, 255, 255, 0.35);
+  --timer-center-border: rgba(124, 58, 237, 0.2);
+}
+
+[data-theme="spotlight-pastel-studio"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background: linear-gradient(135deg, #f8f6fc 0%, #faf8ff 50%, #f6f4fb 100%);
+  overflow: hidden;
+}
+
+[data-theme="spotlight-pastel-studio"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(124, 58, 237, 0.22) 0%, rgba(124, 58, 237, 0.06) 25%, transparent 50%),
+    radial-gradient(circle at 96% 6%, rgba(167, 139, 250, 0.26) 0%, rgba(167, 139, 250, 0.06) 25%, transparent 50%),
+    radial-gradient(circle at 6% 94%, rgba(139, 92, 246, 0.24) 0%, rgba(139, 92, 246, 0.06) 25%, transparent 50%),
+    radial-gradient(circle at 94% 94%, rgba(196, 181, 253, 0.28) 0%, rgba(196, 181, 253, 0.06) 25%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(250, 245, 255, 0.7) 0%, rgba(245, 243, 255, 0.4) 40%, transparent 70%);
+  background-blend-mode: soft-light;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-pastel-studio"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 18vh 10vw 12vh 10vw;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(237, 233, 254, 0.2) 0%, transparent 70%);
+  box-shadow: 0 0 200px 80px rgba(167, 139, 250, 0.1);
+  opacity: 0.6;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* 8. Cloud Beam (Light) - Azure Serenity */
+[data-theme="spotlight-cloud-beam"] {
+  --accent-1: #3b82f6;
+  --accent-2: #60a5fa;
+  --accent-glow: rgba(96, 165, 250, 0.25);
+  --timer-ring-start: #3b82f6;
+  --timer-ring-end: #60a5fa;
+  --timer-center-bg: rgba(255, 255, 255, 0.35);
+  --timer-center-border: rgba(59, 130, 246, 0.2);
+}
+
+[data-theme="spotlight-cloud-beam"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background: linear-gradient(135deg, #f0f9ff 0%, #f8fbff 50%, #eff6ff 100%);
+  overflow: hidden;
+}
+
+[data-theme="spotlight-cloud-beam"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(59, 130, 246, 0.20) 0%, rgba(59, 130, 246, 0.05) 25%, transparent 50%),
+    radial-gradient(circle at 96% 6%, rgba(96, 165, 250, 0.24) 0%, rgba(96, 165, 250, 0.05) 25%, transparent 50%),
+    radial-gradient(circle at 6% 94%, rgba(147, 197, 253, 0.22) 0%, rgba(147, 197, 253, 0.05) 25%, transparent 50%),
+    radial-gradient(circle at 94% 94%, rgba(186, 230, 253, 0.26) 0%, rgba(186, 230, 253, 0.05) 25%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(240, 249, 255, 0.75) 0%, rgba(239, 246, 255, 0.45) 40%, transparent 70%);
+  background-blend-mode: soft-light;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-cloud-beam"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 18vh 10vw 12vh 10vw;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(224, 242, 254, 0.25) 0%, transparent 70%);
+  box-shadow: 0 0 200px 80px rgba(96, 165, 250, 0.08);
+  opacity: 0.6;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* 9. Golden Hour (Light) - Amber Majesty */
+[data-theme="spotlight-golden-hour"] {
+  --accent-1: #d97706;
+  --accent-2: #f59e0b;
+  --accent-glow: rgba(245, 158, 11, 0.25);
+  --timer-ring-start: #d97706;
+  --timer-ring-end: #f59e0b;
+  --timer-center-bg: rgba(255, 255, 255, 0.35);
+  --timer-center-border: rgba(217, 119, 6, 0.2);
+}
+
+[data-theme="spotlight-golden-hour"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fef9e7 100%);
+  overflow: hidden;
+}
+
+[data-theme="spotlight-golden-hour"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(217, 119, 6, 0.24) 0%, rgba(217, 119, 6, 0.06) 25%, transparent 50%),
+    radial-gradient(circle at 96% 6%, rgba(245, 158, 11, 0.28) 0%, rgba(245, 158, 11, 0.06) 25%, transparent 50%),
+    radial-gradient(circle at 6% 94%, rgba(251, 146, 60, 0.26) 0%, rgba(251, 146, 60, 0.06) 25%, transparent 50%),
+    radial-gradient(circle at 94% 94%, rgba(252, 211, 77, 0.3) 0%, rgba(252, 211, 77, 0.06) 25%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 251, 235, 0.8) 0%, rgba(254, 243, 199, 0.5) 40%, transparent 70%);
+  background-blend-mode: soft-light;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-golden-hour"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 18vh 10vw 12vh 10vw;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(254, 240, 199, 0.3) 0%, transparent 70%);
+  box-shadow: 0 0 200px 80px rgba(245, 158, 11, 0.1);
+  opacity: 0.65;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* 10. Minimal Veil (Light) - Pearl Elegance */
+[data-theme="spotlight-minimal-veil"] {
+  --accent-1: #71717a;
+  --accent-2: #a1a1aa;
+  --accent-glow: rgba(161, 161, 170, 0.25);
+  --timer-ring-start: #71717a;
+  --timer-ring-end: #a1a1aa;
+  --timer-center-bg: rgba(255, 255, 255, 0.35);
+  --timer-center-border: rgba(113, 113, 122, 0.2);
+}
+
+[data-theme="spotlight-minimal-veil"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background: linear-gradient(135deg, #fafaf9 0%, #f5f5f4 50%, #f8f8f7 100%);
+  overflow: hidden;
+}
+
+[data-theme="spotlight-minimal-veil"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(113, 113, 122, 0.16) 0%, rgba(113, 113, 122, 0.04) 25%, transparent 50%),
+    radial-gradient(circle at 96% 6%, rgba(161, 161, 170, 0.18) 0%, rgba(161, 161, 170, 0.04) 25%, transparent 50%),
+    radial-gradient(circle at 6% 94%, rgba(120, 113, 108, 0.14) 0%, rgba(120, 113, 108, 0.04) 25%, transparent 50%),
+    radial-gradient(circle at 94% 94%, rgba(168, 162, 158, 0.2) 0%, rgba(168, 162, 158, 0.04) 25%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.9) 0%, rgba(245, 245, 244, 0.6) 40%, transparent 70%);
+  background-blend-mode: soft-light;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-minimal-veil"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 18vh 10vw 12vh 10vw;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(250, 250, 249, 0.4) 0%, transparent 70%);
+  box-shadow: 0 0 200px 80px rgba(161, 161, 170, 0.06);
+  opacity: 0.7;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* Shared Animations */
+@keyframes spotlight-breathe {
+  0%, 100% {
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes spotlight-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  45% {
+    transform: scale(1.02);
+    opacity: 0.55;
+  }
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme^="spotlight-"] .play-area-layout::before,
+  [data-theme^="spotlight-"] .play-area-layout::after {
+    animation: none;
+  }
+}

@@ -66,6 +66,7 @@ export interface DailyStats {
   breakTime?: number; // Total break time in minutes (only successful completions)
   deviationTime?: number; // Total deviation time in minutes
   focusTime?: number; // Total focus time in minutes (alert frequency when Focused selected)
+  longBreakTime?: number; // Total long break time in minutes (only successful completions)
 }
 
 export interface SessionRecord {

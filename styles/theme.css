@@ -1,0 +1,128 @@
+/* Dark Mode Theme */
+[data-theme="dark-mode"] {
+  --surface-base: #000000;
+  --surface-raised: #111111;
+  --surface-muted: #1a1a1a;
+  --surface-overlay: rgba(255, 255, 255, 0.04);
+  --text-primary: #f8fafc;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --accent-primary: #7c3aed;
+  --accent-primary-muted: rgba(124, 58, 237, 0.24);
+  --accent-success: #22d3ee;
+  --accent-warning: #f97316;
+  --accent-border: rgba(148, 163, 184, 0.32);
+  --priority-high: #fb7185;
+  --priority-medium: #fbbf24;
+  --priority-low: #34d399;
+  --card-radius-lg: 28px;
+  --card-radius-md: 18px;
+  --font-body: 'Inter', sans-serif;
+  --font-heading: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+/* Dark Mode: Pure black background with inset shadow for depth */
+[data-theme="dark-mode"] body {
+  background-color: var(--surface-base);
+  box-shadow: inset 0 0 100px rgba(255, 255, 255, 0.05);
+}
+
+/* Spotlight Mode Theme */
+[data-theme="spotlight-mode"] {
+  --surface-base: #0f0f0f;
+  --surface-raised: #1a1a1a;
+  --surface-muted: #262626;
+  --surface-overlay: rgba(255, 255, 255, 0.06);
+  --text-primary: #f8fafc;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --accent-primary: #7c3aed;
+  --accent-primary-muted: rgba(124, 58, 237, 0.24);
+  --accent-success: #22d3ee;
+  --accent-warning: #f97316;
+  --accent-border: rgba(148, 163, 184, 0.32);
+  --priority-high: #fb7185;
+  --priority-medium: #fbbf24;
+  --priority-low: #34d399;
+  --card-radius-lg: 28px;
+  --card-radius-md: 18px;
+  --font-body: 'Inter', sans-serif;
+  --font-heading: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+/* Spotlight Mode: Dynamic 4-corner lighting with center focus */
+[data-theme="spotlight-mode"] .play-area-layout {
+  position: relative;
+  z-index: 0;
+  background-color: #030303;
+  overflow: hidden;
+}
+
+[data-theme="spotlight-mode"] .play-area-layout::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+
+  background-image:
+    radial-gradient(circle at 4% 4%, rgba(59, 130, 246, 0.55) 0%, rgba(59, 130, 246, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 96% 6%, rgba(139, 92, 246, 0.6) 0%, rgba(139, 92, 246, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 6% 94%, rgba(6, 182, 212, 0.55) 0%, rgba(6, 182, 212, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 94% 94%, rgba(236, 72, 153, 0.58) 0%, rgba(236, 72, 153, 0.12) 22%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12) 0%, rgba(124, 58, 237, 0.10) 25%, rgba(0, 0, 0, 0.85) 65%, #000000 100%);
+  background-blend-mode: screen;
+  animation: spotlight-breathe 9s ease-in-out infinite;
+}
+
+[data-theme="spotlight-mode"] .play-area-layout::after {
+  content: '';
+  position: fixed;
+  inset: 16vh 8vw 10vh 8vw;
+  z-index: 0;
+  pointer-events: none;
+
+  border-radius: 50%;
+  box-shadow: 0 0 180px 60px rgba(255, 255, 255, 0.04);
+  opacity: 0.4;
+  animation: spotlight-pulse 7s ease-in-out infinite;
+}
+
+/* Pulse animation for Spotlight Mode */
+@keyframes spotlight-breathe {
+  0%, 100% {
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes spotlight-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  45% {
+    transform: scale(1.02);
+    opacity: 0.55;
+  }
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="spotlight-mode"] .play-area-layout::before,
+  [data-theme="spotlight-mode"] .play-area-layout::after {
+    animation: none;
+  }
+}
+
+/* Remove central halo overlay for all spotlight-derived themes */
+[data-theme="spotlight-mode"] .play-area-layout::after,
+[data-theme^="spotlight-"] .play-area-layout::after {
+  display: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  animation: none !important;
+  opacity: 0 !important;
+}

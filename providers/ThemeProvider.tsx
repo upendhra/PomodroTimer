@@ -9,6 +9,8 @@ interface ThemeProviderProps {
   children: ReactNode;
 }
 
+const DEFAULT_SPOTLIGHT_THEME = 'spotlight-nebula-noir';
+
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { theme } = useTheme();
   const { selectedMusic, setAudioRef, volume, loopMode } = useMusic();
@@ -25,6 +27,17 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       audioRef.current.loop = loopMode;
     }
   }, [selectedMusic, volume, loopMode]);
+
+  // Load color scheme theme from localStorage on mount
+  useEffect(() => {
+    console.log('[ThemeProvider] Loading theme on mount');
+    const savedTheme = localStorage.getItem('color-scheme-theme') || 'dark-mode';
+    const normalizedTheme =
+      savedTheme === 'spotlight-mode' ? DEFAULT_SPOTLIGHT_THEME : savedTheme;
+    console.log('[ThemeProvider] Saved theme from localStorage:', savedTheme);
+    document.documentElement.setAttribute('data-theme', normalizedTheme);
+    console.log('[ThemeProvider] data-theme set on html:', document.documentElement.getAttribute('data-theme'));
+  }, []);
 
   return (
     <ThemeWallpaperWrapper theme={theme}>
