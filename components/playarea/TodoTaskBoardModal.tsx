@@ -187,7 +187,6 @@ export default function TodoTaskBoardModal({
         // Replace temp task with real one
         setModalTasks(prev => prev.map(t => t.id === tempId ? createdTask : t));
         setTasksAddedDuringSession(prev => new Set(prev).add(createdTask.id));
-        onRefresh?.();
       } else if (response.status === 401) {
         console.error('❌ Authentication required - please log in again');
         alert('Your session has expired. Please refresh the page and log in again.');

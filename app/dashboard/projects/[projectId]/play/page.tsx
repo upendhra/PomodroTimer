@@ -2487,8 +2487,11 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
       console.error('❌ Failed to fix tasks_completed:', error);
     }
 
-    // Sync planned and completed hours for today
-    await syncDailyHoursToDB({ dateKey: getTodayKey() });
+    // Sync planned and completed hours for today (debounced to prevent excessive calls)
+    // Removed immediate syncDailyHoursToDB call - using only debounced sync
+    
+    // Trigger debounced sync for achievements after task changes
+    debouncedSyncDailyAchievements();
   }, [projectId, boardTasks, dailyPomodoro.count, projectStats, dailyStats.hoursWorked, totalPlannedMinutes, syncDailyHoursToDB]);
 
   // Helper function to delete daily achievements for fresh start
@@ -2688,7 +2691,7 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
         longestStreak: calculatedLongestStreak,
         tasksCompleted: dailyStats.tasksCompleted,
         tasksCreated: boardTasks.length,
-        plannedHours: totalPlannedMinutes / 60,
+        plannedHours: calculatePlannedHoursFromTasks(boardTasks),
         completedHours: dailyStats.hoursWorked,
         totalSessionTime: Math.round(totalFocusTime),
         breakSessions: dailyStats.breakSessions, // Use direct count instead of calculation
@@ -2888,21 +2891,20 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [projectId, syncDailyAchievements]);
 
-  // Sync quietly when the page is being hidden (avoids repeated reload prompts)
-  useEffect(() => {
-    if (!projectId) return;
+  // Client-side calculation of planned hours (avoids server round-trip)
+  const calculatePlannedHoursFromTasks = useCallback((tasks: BoardTaskCard[]) => {
+    const totalMinutes = tasks.reduce((sum, task) => sum + (task.duration || 0), 0);
+    return totalMinutes / 60;
+  }, []);
 
-    const handlePageHide = () => {
-      try {
-        void syncDailyAchievements(true);
-      } catch (error) {
-        console.error('Failed to sync on page hide:', error);
+  // Cleanup debounced sync on unmount
+  useEffect(() => {
+    return () => {
+      if (debouncedSyncRef.current) {
+        clearTimeout(debouncedSyncRef.current);
       }
     };
-
-    window.addEventListener('pagehide', handlePageHide);
-    return () => window.removeEventListener('pagehide', handlePageHide);
-  }, [projectId, syncDailyAchievements]);
+  }, []);
 
   // Sync on beforeunload (browser close/logout)
   useEffect(() => {
