@@ -326,6 +326,8 @@ export default function TaskBoardModal({
 
   const handleModalAddTask = async (task: Omit<BoardTaskCard, 'id'>) => {
     try {
+      console.log('🚀 Creating task immediately:', task.title);
+      
       const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: {
@@ -344,16 +346,20 @@ export default function TaskBoardModal({
 
       if (response.status === 201) {
         const createdTask = await response.json();
-        console.log('✅ Task created in modal:', createdTask.id);
+        console.log('✅ Task created immediately:', createdTask.id);
+        
+        // Optimistic UI update - add to modal state immediately
         setModalTasks(prev => [...prev, createdTask]);
         setTasksAddedDuringSession(prev => new Set(prev).add(createdTask.id));
+        
+        return createdTask; // Return for potential use
       } else {
         const errorData = await response.json();
-        console.error('❌ Failed to create task in modal:', errorData);
+        console.error('❌ Failed to create task:', errorData);
         throw new Error(errorData.error || 'Failed to create task');
       }
     } catch (error) {
-      console.error('❌ Error creating task in modal:', error);
+      console.error('❌ Error creating task:', error);
       throw error;
     }
   };
@@ -661,38 +667,33 @@ export default function TaskBoardModal({
       currentCount: current.length,
       originalIds: original.map(t => t.id),
       currentIds: current.map(t => t.id),
-      originalTitles: original.map(t => ({ id: t.id, title: t.title })),
-      currentTitles: current.map(t => ({ id: t.id, title: t.title })),
+      addedThisSession: Array.from(tasksAddedDuringSession),
     });
 
     // Check for new tasks (tasks that exist in current but not in original)
     for (const task of current) {
       if (!originalMap.has(task.id)) {
-        // Don't create tasks that were already added and persisted during this session
+        // Skip tasks that were already created immediately during this session
         if (tasksAddedDuringSession.has(task.id)) {
-          console.log('⏭️ Skipping create for task already added this session:', task.id, task.title);
+          console.log('⏭️ Skipping duplicate creation for task already added this session:', task.id, task.title);
           continue;
         }
-        console.log('➕ Detected new task:', task.id, task.title, '(not found in original)');
+        console.log('➕ Detected new task to create:', task.id, task.title);
         changes.push({
           operation: 'create',
           ...task,
         });
-      } else {
-        console.log('✅ Task exists in both:', task.id, task.title);
       }
     }
 
     // Check for deleted tasks (tasks that exist in original but not in current)
     for (const task of original) {
       if (!currentMap.has(task.id)) {
-        console.log('🗑️ Detected deleted task:', task.id, task.title, '(not found in current)');
+        console.log('🗑️ Detected deleted task:', task.id, task.title);
         changes.push({
           operation: 'delete',
           id: task.id,
         });
-      } else {
-        console.log('✅ Task still exists:', task.id, task.title);
       }
     }
 
@@ -711,6 +712,7 @@ export default function TaskBoardModal({
     if (!projectId) return;
 
     try {
+      // Fast validation before API call
       const validation = await TaskBucketService.validateTaskCreation(projectId, modalTasks.length);
 
       if (!validation.isValid) {
@@ -720,16 +722,20 @@ export default function TaskBoardModal({
 
       setTaskLimitValidation(null);
 
-      await handleModalAddTask({
+      // Immediate creation and UI update
+      const createdTask = await handleModalAddTask({
         title: draftTitle.trim(),
         priority: draftPriority,
         duration: draftDuration,
         status: 'todo',
       });
 
+      // Clear form immediately for fast next task creation
       setDraftTitle('');
       setDraftDuration(25);
       setDraftPriority('medium');
+      
+      console.log('🎉 Task created and UI updated instantly:', createdTask.title);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setTaskLimitValidation({

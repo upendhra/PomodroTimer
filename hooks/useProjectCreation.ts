@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 
 export type DurationType = 'date_range' | 'daily';
 
@@ -19,13 +19,20 @@ interface ProjectCreationState {
   currentStep: 1 | 2;
   isSubmitting: boolean;
 
+  // Waitlist popup state
+  isWaitlistOpen: boolean;
+
   // Form data
   formData: ProjectFormData;
 
   // Actions
-  openModal: () => void;
+  openModal: () => Promise<void>;
   closeModal: () => void;
   resetForm: () => void;
+
+  // Waitlist actions
+  openWaitlist: () => void;
+  closeWaitlist: () => void;
 
   // Step navigation
   nextStep: () => void;
@@ -40,7 +47,7 @@ interface ProjectCreationState {
 
   // Submission
   submitProject: () => Promise<string | null>; // Returns project ID or null on error
-  submitAndNavigate: (router: any) => Promise<void>;
+  submitAndNavigate: (router?: any) => Promise<void>;
 }
 
 const initialFormData: ProjectFormData = {
@@ -56,12 +63,49 @@ export const useProjectCreation = create<ProjectCreationState>((set, get) => ({
   isOpen: false,
   currentStep: 1,
   isSubmitting: false,
+  isWaitlistOpen: false,
   formData: { ...initialFormData },
 
   // Modal actions
-  openModal: () => set({ isOpen: true, currentStep: 1, formData: { ...initialFormData } }),
+  openModal: async () => {
+    try {
+      const supabase = createClient();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        console.error('User not authenticated');
+        return;
+      }
+
+      // Check current project count
+      const { data: projects, error } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error fetching projects:', error);
+        return;
+      }
+
+      // If user has 2 or more projects, show waitlist instead
+      if (projects && projects.length >= 2) {
+        set({ isWaitlistOpen: true });
+        return;
+      }
+
+      // Otherwise, open the creation modal
+      set({ isOpen: true, currentStep: 1, formData: { ...initialFormData } });
+    } catch (err) {
+      console.error('Error checking project count:', err);
+    }
+  },
   closeModal: () => set({ isOpen: false }),
   resetForm: () => set({ formData: { ...initialFormData }, currentStep: 1 }),
+
+  // Waitlist actions
+  openWaitlist: () => set({ isWaitlistOpen: true }),
+  closeWaitlist: () => set({ isWaitlistOpen: false }),
 
   // Step navigation
   nextStep: () => set((state) => ({
@@ -142,6 +186,7 @@ export const useProjectCreation = create<ProjectCreationState>((set, get) => ({
 
     try {
       console.log('Getting authenticated user...');
+      const supabase = createClient();
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) {
         console.error('Auth error:', userError);
@@ -262,13 +307,14 @@ export const useProjectCreation = create<ProjectCreationState>((set, get) => ({
     }
   },
 
-  submitAndNavigate: async (router: any) => {
+  submitAndNavigate: async (_router?: any) => {
     const projectId = await get().submitProject();
     if (projectId) {
       // Reset form and close modal
       set({ isOpen: false, formData: { ...initialFormData }, currentStep: 1 });
-      // Navigate directly to play area
-      router.push(`/dashboard/projects/${projectId}/play`);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('project-created', { detail: { projectId } }));
+      }
     } else {
       // Still close modal on error, but don't navigate
       set({ isOpen: false });

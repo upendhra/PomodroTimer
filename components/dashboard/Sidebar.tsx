@@ -19,10 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 const navItems = [
   { label: "Home", href: "/dashboard/home", icon: Home },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
-  { label: "Timer", href: "/dashboard/timer", icon: Timer },
-  { label: "History", href: "/dashboard/history", icon: History },
-  { label: "Reports", href: "/dashboard/reports", icon: BarChart3 },
-  { label: "Settings", href: "/dashboard/settings", icon: Settings },
+  // Remaining entries (Timer, History, Reports, Settings) intentionally hidden for now
 ];
 
 interface SidebarProps {

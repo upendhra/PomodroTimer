@@ -27,15 +27,23 @@ const useThemeStore = create<ThemeState>((set, get) => ({
   currentTheme: null,
 
   setUserSelectedTheme: async (themeOrId: string | any) => {
-    const theme =
-      typeof themeOrId === 'string' ? await getThemeById(themeOrId) : themeOrId;
-    if (!theme) return;
+    let theme = null;
+    if (themeOrId === null) {
+      console.log('[useTheme] setUserSelectedTheme: Clearing userSelectedTheme');
+    } else if (typeof themeOrId === 'string') {
+      theme = await getThemeById(themeOrId);
+      console.log('[useTheme] setUserSelectedTheme: Setting theme by ID:', themeOrId, 'resolved to:', theme);
+    } else {
+      theme = themeOrId;
+      console.log('[useTheme] setUserSelectedTheme: Setting theme object:', theme);
+    }
     set({ userSelectedTheme: theme });
     get().resolveTheme();
   },
 
   setProjectTheme: async (id: string | null) => {
     const theme = id ? await getThemeById(id) : null;
+    console.log('[useTheme] setProjectTheme: Setting project theme:', id, 'resolved to:', theme);
     set({ projectTheme: theme });
     get().resolveTheme();
   },
@@ -59,10 +67,15 @@ const useThemeStore = create<ThemeState>((set, get) => ({
 
     if (customWallpaper) {
       theme = { wallpaper_url: customWallpaper };
+      console.log('[useTheme] resolveTheme: Using customWallpaper:', theme);
     } else if (projectTheme) {
       theme = projectTheme;
+      console.log('[useTheme] resolveTheme: Using projectTheme:', theme);
     } else if (userSelectedTheme) {
       theme = userSelectedTheme;
+      console.log('[useTheme] resolveTheme: Using userSelectedTheme:', theme);
+    } else {
+      console.log('[useTheme] resolveTheme: No theme sources, setting theme to null');
     }
 
     set({ currentTheme: theme });

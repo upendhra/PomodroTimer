@@ -771,31 +771,16 @@ export default memo(function SettingsPanel({
           )}
 
           {activeTab === 'clock' && (
-            <div className="space-y-6">
+            <div className="space-y-4 text-center">
               <h3 className="text-lg font-semibold text-white">Clock Settings</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
-                    Time Format
-                  </label>
-                  <div className="flex gap-3">
-                    <button className="rounded-lg border border-blue-400 bg-blue-400/10 px-4 py-2 text-blue-300">
-                      12h
-                    </button>
-                    <button className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-white hover:border-white/50">
-                      24h
-                    </button>
-                  </div>
+              <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 px-6 py-10 shadow-inner">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white/80">
+                  <Watch className="h-6 w-6" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
-                    Time Zone
-                  </label>
-                  <select className={selectClass}>
-                    <option value="auto">Auto-detect</option>
-                    <option value="utc">UTC</option>
-                  </select>
-                </div>
+                <p className="text-2xl font-semibold text-white">Coming soon</p>
+                <p className="mt-2 text-sm text-white/70">
+                  We’re crafting advanced clock controls and personalization. Stay tuned!
+                </p>
               </div>
             </div>
           )}

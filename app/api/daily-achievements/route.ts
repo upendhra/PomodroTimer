@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
           date: date,
           start_time: session.startTime,
           end_time: session.endTime,
-          duration_minutes: session.duration,
+          duration_minutes: Math.round(session.duration || 0), // FIX: Round to integer
           session_type: mapSessionType(session.type),
           completed: session.completed !== false
         };

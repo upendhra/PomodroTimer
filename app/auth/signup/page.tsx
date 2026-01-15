@@ -117,15 +117,36 @@ export default function SignupPage() {
         <div className="absolute top-32 right-10 w-[28rem] h-[28rem] bg-gradient-to-tr from-indigo-200/60 to-pink-200/40 rounded-full blur-[180px] animate-aurora-blob-2" />
         <div className="absolute bottom-0 left-10 w-[30rem] h-[30rem] bg-gradient-to-bl from-cyan-200/50 to-blue-200/40 rounded-full blur-[200px] animate-aurora-blob-3" />
         {/* Subtle particles */}
-        {Array.from({ length: 20 }).map((_, i) => (
+        {[
+          { top: 15.3, left: 22.7, delay: 0.5, duration: 8.2 },
+          { top: 78.4, left: 88.1, delay: 2.1, duration: 9.5 },
+          { top: 42.6, left: 55.9, delay: 1.8, duration: 7.3 },
+          { top: 91.2, left: 12.4, delay: 3.4, duration: 10.1 },
+          { top: 8.7, left: 67.3, delay: 0.9, duration: 6.8 },
+          { top: 65.1, left: 34.8, delay: 4.2, duration: 11.2 },
+          { top: 33.9, left: 91.5, delay: 1.3, duration: 7.9 },
+          { top: 56.4, left: 8.2, delay: 2.7, duration: 9.1 },
+          { top: 24.8, left: 76.6, delay: 3.9, duration: 8.5 },
+          { top: 88.3, left: 43.1, delay: 0.6, duration: 10.7 },
+          { top: 12.5, left: 58.9, delay: 2.4, duration: 7.6 },
+          { top: 71.7, left: 19.3, delay: 1.7, duration: 9.8 },
+          { top: 47.2, left: 82.4, delay: 3.1, duration: 6.4 },
+          { top: 95.6, left: 28.7, delay: 0.3, duration: 11.5 },
+          { top: 19.8, left: 71.2, delay: 4.5, duration: 8.9 },
+          { top: 62.3, left: 5.6, delay: 1.2, duration: 7.1 },
+          { top: 36.1, left: 94.8, delay: 2.9, duration: 10.3 },
+          { top: 83.9, left: 49.5, delay: 0.8, duration: 9.4 },
+          { top: 28.4, left: 63.7, delay: 3.6, duration: 6.9 },
+          { top: 74.5, left: 15.9, delay: 1.5, duration: 8.7 }
+        ].map((particle, i) => (
           <span
             key={i}
             className="absolute w-1 h-1 bg-white/50 rounded-full animate-float"
             style={{
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${6 + Math.random() * 6}s`
+              top: `${particle.top}%`,
+              left: `${particle.left}%`,
+              animationDelay: `${particle.delay}s`,
+              animationDuration: `${particle.duration}s`
             }}
           />
         ))}
@@ -210,7 +231,7 @@ export default function SignupPage() {
           </div>
 
           <p className="text-center text-gray-600 mt-6">
-            Already have an account? <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 font-semibold cursor-pointer">Login</span>
+            Already have an account? <Link href="/auth/login" className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 font-semibold cursor-pointer">Login</Link>
           </p>
         </div>
       </div>

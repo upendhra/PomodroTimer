@@ -7,6 +7,7 @@ import { useProjectCreation } from "@/hooks/useProjectCreation";
 import { Plus } from "lucide-react";
 import Toast from '@/components/playarea/Toast';
 import { clearProjectCache } from '@/utils/cache';
+import WaitlistPopup from '@/components/project/WaitlistPopup';
 
 interface Project {
   id: string;
@@ -22,7 +23,7 @@ export default function ProjectsIndexPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { openModal } = useProjectCreation();
+  const { openModal, isWaitlistOpen, closeWaitlist } = useProjectCreation();
 
 const [toastMessage, setToastMessage] = useState<string | null>(null);
 const [toastVisible, setToastVisible] = useState(false);
@@ -174,6 +175,7 @@ const handleDeleteProject = async (projectId: string) => {
         )}
       </div>
       <Toast message={toastMessage || ''} visible={toastVisible} />
+      <WaitlistPopup isOpen={isWaitlistOpen} onClose={closeWaitlist} />
     </div>
   );
 }

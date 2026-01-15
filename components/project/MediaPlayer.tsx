@@ -369,14 +369,8 @@ export default function MediaPlayer({ open, onClose, positionClass = "fixed righ
               type="button"
               aria-label="Close media player"
               onClick={(e) => {
-                console.log('🎵 Close button clicked - MediaPlayer');
-                console.log('🎵 Event:', e);
-                console.log('🎵 Target:', e.target);
-                console.log('🎵 Current target:', e.currentTarget);
                 e.stopPropagation();
-                console.log('🎵 Calling onClose function');
                 onClose();
-                console.log('🎵 onClose function called');
               }}
               className="relative z-10 rounded-lg border border-white/10 bg-white/5 p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/20"
               style={{ pointerEvents: 'auto' }}

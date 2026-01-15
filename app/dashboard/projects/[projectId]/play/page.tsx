@@ -4,6 +4,7 @@ import {
   ArrowLeft, 
   BarChart3,
   Bell, 
+  Briefcase,
   Calendar, 
   ChevronDown,
   Eye,
@@ -663,17 +664,17 @@ export default function ProjectPlayAreaPage() {
     if (isLight) {
       return {
         backgroundColor: themeColors.lightChip,
-        borderColor: themeColors.lightBorder,
+        borderColor: 'rgba(0, 0, 0, 0.06)',
         color: 'var(--text-primary, #0B1220)',
         boxShadow: 'var(--glass-shadow-1, 0 8px 32px rgba(31, 38, 135, 0.12)), var(--glass-shadow-2, 0 2px 8px rgba(31, 38, 135, 0.08))',
       };
     }
     return {
       backgroundColor: themeColors.chip,
-      borderColor: themeColors.border,
+      borderColor: 'rgba(255, 255, 255, 0.08)',
       color: '#ffffff',
     };
-  }, [isLight, themeColors.chip, themeColors.border, themeColors.lightChip, themeColors.lightBorder]);
+  }, [isLight, themeColors.chip, themeColors.lightChip]);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [initialMouse, setInitialMouse] = useState({ x: 0, y: 0 });
@@ -1085,10 +1086,26 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
     completedHoursOverride?: number;
   };
 
+  // Ref to track ongoing sync to prevent duplicates
+  const syncInProgressRef = useRef(false);
+  const lastSyncParamsRef = useRef<string>('');
+
   const syncDailyHoursToDB = useCallback(async (options?: HoursSyncOptions) => {
     const targetDate = options?.dateKey || getTodayKey();
     const plannedHours = options?.plannedHoursOverride ?? calculatePlannedHours(targetDate);
     const completedHours = options?.completedHoursOverride ?? (dailyStats.hoursWorked || 0);
+    
+    // Create a unique key for this sync request
+    const syncKey = `${projectId}-${targetDate}-${plannedHours}-${completedHours}-${pomodoroDurationMode}`;
+    
+    // Prevent duplicate sync calls with identical parameters
+    if (syncInProgressRef.current && lastSyncParamsRef.current === syncKey) {
+      console.log('⏭️ Skipping duplicate sync call - already in progress with same params');
+      return;
+    }
+    
+    syncInProgressRef.current = true;
+    lastSyncParamsRef.current = syncKey;
     
     console.log(`Syncing hours for ${targetDate}:`, {
       plannedHours,
@@ -1166,6 +1183,9 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
     } catch (error) {
       console.error('Error syncing hours:', error);
       // Don't rethrow - we don't want to break the UI flow
+    } finally {
+      // Reset the flag after sync completes (success or failure)
+      syncInProgressRef.current = false;
     }
   }, [projectId, calculatePlannedHours, dailyStats.hoursWorked, pomodoroDurationMode]);
 
@@ -1174,19 +1194,46 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
     syncDailyHoursToDB();
   }, [pomodoroDurationMode, syncDailyHoursToDB]);
 
-  // Update tasksCompleted when tasks are completed
-  const completedTasksCount = boardTasks.filter(task => task.status === 'achieved' || task.completedAt).length;
-  useEffect(() => {
-    console.log('Tasks completed count changed to:', completedTasksCount);
-    syncDailyHoursToDB();
-  }, [completedTasksCount, syncDailyHoursToDB]);
+  // Refs to track previous values for change detection
+  const prevCompletedTasksCountRef = useRef<number | null>(null);
+  const prevTasksCountRef = useRef<number | null>(null);
 
-  // Sync planned hours when tasks are created or deleted
+  // Combined sync for task count and completed task count changes
   const tasksCount = boardTasks.length;
+  const completedTasksCount = boardTasks.filter(task => task.status === 'achieved' || task.completedAt).length;
+  const taskSyncDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    console.log('Tasks count changed to:', tasksCount);
-    syncDailyHoursToDB();
-  }, [tasksCount, syncDailyHoursToDB]);
+    // Clear any existing timeout
+    if (taskSyncDebounceRef.current) {
+      clearTimeout(taskSyncDebounceRef.current);
+    }
+
+    // Check if either count has changed (not on initial mount)
+    const tasksCountChanged = prevTasksCountRef.current !== null && prevTasksCountRef.current !== tasksCount;
+    const completedCountChanged = prevCompletedTasksCountRef.current !== null && prevCompletedTasksCountRef.current !== completedTasksCount;
+
+    if (tasksCountChanged || completedCountChanged) {
+      console.log('🔄 Task counts changed - tasks:', tasksCount, 'completed:', completedTasksCount);
+
+      // Debounce the sync call to prevent multiple calls during rapid task operations
+      taskSyncDebounceRef.current = setTimeout(() => {
+        console.log('🔄 Executing debounced sync for task changes');
+        syncDailyHoursToDB();
+      }, 300); // 300ms debounce
+    }
+
+    // Update refs
+    prevTasksCountRef.current = tasksCount;
+    prevCompletedTasksCountRef.current = completedTasksCount;
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (taskSyncDebounceRef.current) {
+        clearTimeout(taskSyncDebounceRef.current);
+      }
+    };
+  }, [tasksCount, completedTasksCount, syncDailyHoursToDB]);
 
   const fetchStats = useCallback(async (type: 'daily' | 'weekly' | 'monthly' | 'yearly') => {
     try {
@@ -1268,8 +1315,21 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
     setStatsData({ daily: mergedDaily, weekly, monthly, yearly });
   }, [projectId, mergeWithSupabase, syncToSupabase, dailyStats, projectStats, dailyPomodoro, calculatePlannedHours, fetchStats]);
 
+  // Only load stats on initial mount when projectId changes
+  const hasLoadedStatsRef = useRef(false);
+  const lastProjectIdRef = useRef<string | null>(null);
+  
   useEffect(() => {
-    if (projectId && isLoaded) {
+    // Reset flag when projectId changes
+    if (projectId !== lastProjectIdRef.current) {
+      hasLoadedStatsRef.current = false;
+      lastProjectIdRef.current = projectId;
+    }
+    
+    // Only load stats once per project visit, not after every task operation
+    if (projectId && isLoaded && !hasLoadedStatsRef.current) {
+      hasLoadedStatsRef.current = true;
+      console.log('📊 Loading stats for the first time for project:', projectId);
       loadStats().catch(err => console.error('Load stats error:', err));
     }
   }, [projectId, isLoaded, loadStats]);
@@ -3830,6 +3890,59 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
       {showInterface && (
         <div className="fixed right-6 top-6 z-50 flex flex-col items-end gap-4">
           <div className="flex items-center gap-3">
+            {/* Streak and Session indicators */}
+            <div
+              className="inline-flex items-center gap-1.5 rounded-full border backdrop-blur-xl px-2.5 py-1 text-xs sm:text-sm shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
+              style={isLight ? {
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                borderColor: 'rgba(0, 0, 0, 0.08)'
+              } : {
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                borderColor: 'rgba(255, 255, 255, 0.18)'
+              }}
+            >
+              <span
+                className="flex h-6 w-6 items-center justify-center rounded-full text-base drop-shadow-[0_5px_18px_rgba(248,250,109,0.55)]"
+                style={{
+                  backgroundColor: isLight ? 'rgba(251, 191, 36, 0.2)' : 'rgba(251, 191, 36, 0.25)',
+                  color: isLight ? '#b45309' : '#fbbf24'
+                }}
+              >
+                ⚡
+              </span>
+              <span
+                className="text-sm font-semibold"
+                style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff' }}
+              >
+                {projectStats.currentStreak}
+              </span>
+            </div>
+            <div
+              className="inline-flex items-center gap-1.5 rounded-full border backdrop-blur-xl px-2.5 py-1 text-xs sm:text-sm shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
+              style={isLight ? {
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                borderColor: 'rgba(0, 0, 0, 0.08)'
+              } : {
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                borderColor: 'rgba(255, 255, 255, 0.18)'
+              }}
+            >
+              <span
+                className="flex h-6 w-6 items-center justify-center rounded-full text-base drop-shadow-[0_5px_15px_rgba(45,212,191,0.45)]"
+                style={{
+                  backgroundColor: isLight ? 'rgba(45, 212, 191, 0.2)' : 'rgba(45, 212, 191, 0.25)',
+                  color: isLight ? '#0f766e' : '#5eead4'
+                }}
+              >
+                ⏱️
+              </span>
+              <span
+                className="text-sm font-semibold"
+                style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff' }}
+              >
+                {dailyPomodoro.count}
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setStatsOverlayOpen(true)}
@@ -3847,7 +3960,30 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
               }}
               aria-label="View statistics"
             >
-              <span className="text-base">📊</span>
+              <BarChart3 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setProjectWidgetOpen((prev) => !prev)}
+              title="Project"
+              className="inline-flex items-center justify-center rounded-full border p-2 text-sm font-semibold shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:scale-110"
+              style={projectWidgetOpen ? {
+                borderColor: 'rgba(59, 130, 246, 0.6)',
+                backgroundColor: 'rgba(59, 130, 246, 0.25)',
+                color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff'
+              } : isLight ? {
+                backgroundColor: 'var(--glass-surface, rgba(255, 255, 255, 0.55))',
+                borderColor: 'var(--glass-border, rgba(255, 255, 255, 0.45))',
+                color: 'var(--text-primary, #0B1220)',
+                boxShadow: 'var(--glass-shadow-1, 0 8px 32px rgba(31, 38, 135, 0.12)), var(--glass-shadow-2, 0 2px 8px rgba(31, 38, 135, 0.08))'
+              } : {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                color: '#ffffff'
+              }}
+              aria-label="Toggle project overview"
+            >
+              <Briefcase className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -3893,14 +4029,13 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
             </button>
             <button
               type="button"
-              onClick={() => setThemeDrawerOpen((prev) => !prev)}
+              onClick={() => {
+                setSettingsInitialTab('theme');
+                setSettingsOpen(true);
+              }}
               title="Theme"
               className="inline-flex items-center justify-center rounded-full border p-2 text-sm font-semibold shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition hover:scale-110"
-              style={themeDrawerOpen ? {
-                borderColor: 'rgba(139, 92, 246, 0.6)',
-                backgroundColor: 'rgba(139, 92, 246, 0.25)',
-                color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff'
-              } : isLight ? {
+              style={isLight ? {
                 backgroundColor: 'var(--glass-surface, rgba(255, 255, 255, 0.55))',
                 borderColor: 'var(--glass-border, rgba(255, 255, 255, 0.45))',
                 color: 'var(--text-primary, #0B1220)',
@@ -3910,7 +4045,7 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                 borderColor: 'rgba(255, 255, 255, 0.2)',
                 color: '#ffffff'
               }}
-              aria-label="Open theme selector"
+              aria-label="Open theme settings"
             >
               <Palette className="h-4 w-4" />
             </button>
@@ -3951,19 +4086,19 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
               <Settings className="h-4 w-4" />
             </button>
           </div>
-          {project && (
+          {project && projectWidgetOpen && (
             <div
               className={`inline-flex w-auto max-w-[15rem] flex-col rounded-2xl border border-white/15 bg-black/80 text-white shadow-[0_20px_45px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-all duration-300 ${
                 projectWidgetOpen ? 'px-4 py-4' : 'px-2 py-1.5'
               }`}
             >
-              <div className="flex items-center gap-1.5">
-                <div className="flex flex-col">
-                  <p className="text-sm font-semibold text-white">Project Overview</p>
-                  {projectWidgetOpen && (
-                    <p className="text-sm font-semibold">{project.project_name}</p>
-                  )}
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/90">
+                  <Briefcase className="h-4 w-4" />
                 </div>
+                <p className="text-sm font-semibold text-white">
+                  {projectWidgetOpen && project.project_name ? project.project_name : 'Project Overview'}
+                </p>
                 <button
                   type="button"
                   onClick={() => setProjectWidgetOpen((prev) => !prev)}
@@ -4052,9 +4187,30 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                       <>
                         <p className="text-[10px] uppercase tracking-[0.45em]" style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.5)', textShadow: isLight ? 'none' : '0 0 4px rgba(0,0,0,0.8)' }}>Current mission</p>
                         <div className="mt-1 flex items-center gap-3">
-                          <h3 className="font-heading text-2xl font-semibold backdrop-blur-xl border rounded-lg px-3 py-1" style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff', backgroundColor: isLight ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.1)', borderColor: isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.2)', textShadow: isLight ? 'none' : '0 0 4px rgba(0,0,0,0.8)' }}>
-                            {currentBoardTask ? currentBoardTask.title : 'No mission selected'}
-                          </h3>
+                          <div className="relative">
+                            <h3 className="font-heading text-2xl font-semibold backdrop-blur-xl border rounded-lg px-4 py-2 pl-8" style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff', backgroundColor: isLight ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.1)', borderColor: isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.08)', textShadow: isLight ? 'none' : '0 0 4px rgba(0,0,0,0.8)' }}>
+                              {currentBoardTask ? currentBoardTask.title : 'No mission selected'}
+                            </h3>
+                            {currentBoardTask && (
+                              <div
+                                className="absolute top-1.5 left-2 group cursor-help z-10"
+                                title={`${PRIORITY_META[currentBoardTask.priority].label} Priority`}
+                              >
+                                <div
+                                  className="w-2.5 h-2.5 rounded-full border border-white/60"
+                                  style={{
+                                    backgroundColor: PRIORITY_META[currentBoardTask.priority].color,
+                                    boxShadow: `0 0 6px ${PRIORITY_META[currentBoardTask.priority].color}50`
+                                  }}
+                                />
+                                {/* Hover tooltip */}
+                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+                                  {PRIORITY_META[currentBoardTask.priority].description}
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-black/90"></div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                           <button
                             type="button"
                             aria-label="Edit mission"
@@ -4068,18 +4224,6 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm" style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.6)', textShadow: isLight ? 'none' : '0 0 4px rgba(0,0,0,0.8)' }}>
                           {currentBoardTask ? (
                             <>
-                              <span
-                                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
-                                style={{
-                                  borderColor: isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.15)',
-                                  backgroundColor: isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.05)',
-                                  color: isLight ? 'var(--text-primary, #0B1220)' : 'rgba(255, 255, 255, 0.8)'
-                                }}
-                              >
-                                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: selectedPriority?.color ?? '#a5f3fc' }}></span>
-                                {selectedPriority?.label ?? 'Planned'}
-                              </span>
-                              <span>{Math.floor(getFocusDuration() / 60)}m focus</span>
                             </>
                           ) : (
                             <span className="text-white/50" style={{ textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>Pick a planned task to sync your Pomodro timer.</span>
@@ -4106,66 +4250,6 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
                         {formatPlannedMinutes(totalPlannedMinutes)}
                       </span>
                     </div>
-                  </div>
-                </div>
-                <div
-                  className="mt-4 flex flex-wrap items-center gap-3"
-                  style={{ color: isLight ? 'var(--text-primary, #0B1220)' : 'rgba(255, 255, 255, 0.8)' }}
-                >
-                  <div
-                    className="inline-flex items-center gap-2 rounded-full border backdrop-blur-xl px-3 py-1.5 text-sm"
-                    style={chipStyle}
-                  >
-                    <span className="text-lg drop-shadow-[0_5px_18px_rgba(248,250,109,0.55)]">⚡</span>
-                    <span
-                      className="text-base font-semibold"
-                      style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff' }}
-                    >
-                      {projectStats.currentStreak}
-                    </span>
-                  </div>
-                  <div
-                    className="inline-flex items-center gap-2 rounded-full border backdrop-blur-xl px-3 py-1.5 text-sm"
-                    style={chipStyle}
-                  >
-                    <span className="text-lg drop-shadow-[0_5px_15px_rgba(45,212,191,0.45)]">⏱️</span>
-                    <span
-                      className="text-base font-semibold"
-                      style={{ color: isLight ? 'var(--text-primary, #0B1220)' : '#ffffff' }}
-                    >
-                      {dailyPomodoro.count}
-                    </span>
-                  </div>
-                  <div
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                      syncStatus === 'syncing' ? 'border-blue-300/60 bg-blue-400/25' :
-                      syncStatus === 'success' ? 'border-green-300/60 bg-green-400/25' :
-                      syncStatus === 'error' ? 'border-red-300/60 bg-red-400/25' :
-                      'border-white/20 bg-white/10'
-                    }`}
-                    style={chipStyle}
-                  >
-                    {syncStatus === 'syncing' && <span className="text-lg">🔄</span>}
-                    {syncStatus === 'success' && <span className="text-lg">✅</span>}
-                    {syncStatus === 'error' && <span className="text-lg">❌</span>}
-                    {syncStatus === 'idle' && <span className="text-lg">💾</span>}
-                    <span
-                      className="text-xs uppercase tracking-[0.35em]"
-                      style={{ color: isLight ? 'var(--text-secondary, #475569)' : 'rgba(255, 255, 255, 0.5)' }}
-                    >
-                      {syncStatus === 'syncing' ? 'Syncing' :
-                       syncStatus === 'success' ? 'Synced' :
-                       syncStatus === 'error' ? 'Sync Error' :
-                       'Data Saved'}
-                    </span>
-                    {lastSyncTime && syncStatus === 'success' && (
-                      <span
-                        className="text-xs"
-                        style={{ color: isLight ? 'var(--text-tertiary, #64748B)' : 'rgba(255, 255, 255, 0.7)' }}
-                      >
-                        {lastSyncTime}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
@@ -4266,13 +4350,6 @@ const [projectStats, setProjectStats] = useState<ProjectStats>(() => {
           setMusicCategoryResetSignal((prev) => prev + 1);
           setSettingsOpen(true);
         }}
-      />
-      <ThemeDrawer
-        open={showInterface && themeDrawerOpen}
-        onClose={() => setThemeDrawerOpen(false)}
-        currentThemeId={selectedThemeId}
-        onSelect={handleThemeSelect}
-        positionClass="fixed right-[11rem] top-24"
       />
       <CalendarDrawer
         open={showInterface && isCalendarOpen}

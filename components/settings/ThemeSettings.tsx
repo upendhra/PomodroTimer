@@ -2,7 +2,7 @@
 
 import { CSSProperties, useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, Image as ImageIcon, Palette, Upload, X } from 'lucide-react';
-import { generateWallpaperThumbnail } from '@/utils/generateThumbnail';
+import { generateWallpaperThumbnail, generateColorSchemeThumbnail } from '@/utils/generateThumbnail';
 import { useTheme } from '@/hooks/useTheme';
 
 interface Theme {
@@ -224,6 +224,8 @@ export default function ThemeSettings() {
   useEffect(() => {
     if (activeTheme?.id) {
       setSelectedTheme(activeTheme.id);
+    } else {
+      setSelectedTheme(null);
     }
   }, [activeTheme?.id]);
 
@@ -280,11 +282,14 @@ export default function ThemeSettings() {
   });
 
   const handleThemeSelection = async (theme: Theme) => {
-    setSelectedTheme(theme.id);
-    try {
+    if (selectedTheme === theme.id) {
+      console.log('[ThemeSettings] Deselecting wallpaper:', theme.name);
+      setSelectedTheme(null);
+      await setGlobalTheme(null);
+    } else {
+      console.log('[ThemeSettings] Selecting wallpaper:', theme.name);
+      setSelectedTheme(theme.id);
       await setGlobalTheme(theme);
-    } catch (error) {
-      console.error('Failed to apply theme:', error);
     }
   };
 
@@ -556,20 +561,6 @@ export default function ThemeSettings() {
             </div>
           )}
         </div>
-
-        {/* Preview of Selected Wallpaper */}
-        {selectedWallpaper && thumbnails[selectedWallpaper.id] && (
-          <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
-            <p className="mb-2 text-xs font-medium text-white/70">Preview</p>
-            <div className="overflow-hidden rounded-lg">
-              <img
-                src={thumbnails[selectedWallpaper.id]}
-                alt={selectedWallpaper.name}
-                className="w-full"
-              />
-            </div>
-          </div>
-        )}
       </section>
 
       {/* Upload Section */}

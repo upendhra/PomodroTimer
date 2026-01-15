@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, useMemo } from 'react';
 
 interface Theme {
   wallpaper_url?: string;
@@ -10,21 +10,23 @@ interface ThemeWallpaperWrapperProps {
 }
 
 export default function ThemeWallpaperWrapper({ theme, children }: ThemeWallpaperWrapperProps) {
-  const backgroundImage = theme?.wallpaper_url ? `url(${theme.wallpaper_url})` : undefined;
-  const hasWallpaper = Boolean(backgroundImage);
+  const backgroundImage = useMemo(() => theme?.wallpaper_url ? `url(${theme.wallpaper_url})` : undefined, [theme?.wallpaper_url]);
+  const hasWallpaper = useMemo(() => Boolean(backgroundImage), [backgroundImage]);
   const [backgroundSize, setBackgroundSize] = useState<'cover' | 'contain'>('cover');
 
-  // Check if any Spotlight Mode preset is active - don't show wallpapers in this case
-  const currentTheme = typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : null;
-  const isSpotlightMode = currentTheme?.startsWith('spotlight-') || false;
-  const shouldShowWallpaper = hasWallpaper && !isSpotlightMode;
+  // Check if any Spotlight Mode preset is active - wallpapers can be shown over spotlight themes
+  const currentTheme = useMemo(() => typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : null, []);
+  const isSpotlightMode = useMemo(() => currentTheme?.startsWith('spotlight-') || false, [currentTheme]);
+  const shouldShowWallpaper = useMemo(() => hasWallpaper, [hasWallpaper]);
 
   console.log('[ThemeWallpaperWrapper] Render:', {
-    hasWallpaper,
+    receivedTheme: theme,
     wallpaperUrl: theme?.wallpaper_url,
-    dataTheme: typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : 'SSR',
+    hasWallpaper,
+    dataTheme: currentTheme,
     isSpotlightMode,
-    shouldShowWallpaper
+    shouldShowWallpaper,
+    backgroundImage
   });
 
   useEffect(() => {

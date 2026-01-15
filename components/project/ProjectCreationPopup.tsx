@@ -1,14 +1,12 @@
 'use client';
 
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useProjectCreation } from '@/hooks/useProjectCreation';
 import ProjectCreationStep1 from './ProjectCreationStep1';
 import ProjectCreationStep2 from './ProjectCreationStep2';
 
 export default function ProjectCreationPopup() {
-  const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const {
     isOpen,
@@ -28,7 +26,7 @@ export default function ProjectCreationPopup() {
       setErrorMessage('Project name is required');
       return;
     }
-    await submitAndNavigate(router);
+    await submitAndNavigate();
   };
 
   return (

@@ -4,6 +4,11 @@ import { useEffect, useState, useRef } from 'react';
 import { Check, Link, Info, ChevronDown, ChevronUp, Music } from 'lucide-react';
 import SpotifyPlaylistSelector from './SpotifyPlaylistSelector';
 
+const COMPACT_PLAYER_HEIGHT = 152;
+const FULL_PLAYER_HEIGHT = 352;
+const PLAYER_WIDTH = "100%";
+const BOTTOM_OFFSET_BUFFER = 120; // keep player above bottom UI (e.g., weather widget)
+
 interface SpotifyEmbedProps {
   playlistId?: string;
   compact?: boolean;
@@ -25,12 +30,15 @@ export default function SpotifyEmbed({
   const [inputError, setInputError] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isSpotifyExpanded, setIsSpotifyExpanded] = useState<boolean>(false);
+  const playerHeight = compact ? COMPACT_PLAYER_HEIGHT : FULL_PLAYER_HEIGHT;
+  const playerWidth = PLAYER_WIDTH;
 
   // Drag functionality
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x: 16, y: 200 }); // Default position - will be updated on mount
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<HTMLDivElement>(null);
+  const initialPlayerHeightRef = useRef(playerHeight);
 
   // Extract Spotify ID and type from URL
   const extractSpotifyId = (url: string): { id: string; type: 'playlist' | 'album' | 'track' } | null => {
@@ -142,7 +150,8 @@ export default function SpotifyEmbed({
   useEffect(() => {
     // Set initial position to bottom-left after component mounts (client-side only)
     if (typeof window !== 'undefined') {
-      setPosition({ x: 16, y: window.innerHeight - 200 });
+      const safeY = Math.max(16, window.innerHeight - (initialPlayerHeightRef.current + BOTTOM_OFFSET_BUFFER));
+      setPosition({ x: 16, y: safeY });
     }
   }, []);
 
@@ -157,9 +166,6 @@ export default function SpotifyEmbed({
       };
     }
   }, [isDragging, dragOffset]);
-
-  const playerHeight = compact ? 152 : 352;
-  const playerWidth = compact ? "100%" : "100%";
 
   if (hasError) {
     return (

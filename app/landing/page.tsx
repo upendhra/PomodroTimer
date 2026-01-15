@@ -6,7 +6,6 @@ import Card from "@/components/ui/Card";
 import GradientText from "@/components/ui/GradientText";
 import SectionHeader from "@/components/ui/SectionHeader";
 import AuroraBackground from "@/components/ui/AuroraBackground";
-import AuroraWave from "@/components/ui/AuroraWave";
 import { Palette, Target, Zap, TrendingUp, Sparkles, Users } from "lucide-react";
 import PomodoroShowcase from "@/components/landing/PomodoroShowcase";
 
@@ -14,7 +13,6 @@ export default function LandingPage() {
   return (
     <main className="relative min-h-screen bg-gradient-to-br from-cyan-50 via-indigo-50 to-purple-50 text-gray-900 overflow-hidden font-['Inter',sans-serif]">
       <AuroraBackground />
-      <AuroraWave />
 
       {/* Top Navigation */}
       <header className="absolute top-0 left-0 right-0 z-20 px-4 sm:px-8 py-4 sm:py-6">
@@ -46,14 +44,14 @@ export default function LandingPage() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-6 justify-center mb-16">
-          <Link href="/auth/signup" className="w-full sm:w-auto">
+          <Link href="/demo/play" className="w-full sm:w-auto">
             <Button size="lg" variant="primary" className="w-full bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white px-10 py-4 rounded-xl shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-105 transition-all duration-300">
-              Get Started
+              Play Area
             </Button>
           </Link>
-          <Link href="/auth/login" className="w-full sm:w-auto">
+          <Link href="/auth/signup" className="w-full sm:w-auto">
             <Button size="lg" variant="secondary" className="w-full bg-white/80 backdrop-blur-sm border border-gray-200 hover:bg-white/90 px-10 py-4 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
-              Login
+              Sign Up
             </Button>
           </Link>
         </div>
